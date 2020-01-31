@@ -7,6 +7,7 @@ import 'dart:async';
 import 'dart:ui' as ui show ImageFilter, Gradient, Image, Color;
 
 import 'package:flutter/animation.dart';
+import 'package:flutter/annotation.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/painting.dart';
@@ -2828,17 +2829,38 @@ class RenderMouseRegion extends RenderProxyBox {
   @override
   bool get needsCompositing => super.needsCompositing || _annotationIsActive;
 
+  bool _searchAnnotations(AnnotationResult<MouseTrackerAnnotation> result, Offset localPosition, {@required bool onlyFirst}) {
+    if (size != null && !size.contains(localPosition)) {
+      return false;
+    }
+    result.add(AnnotationEntry<MouseTrackerAnnotation>(
+      annotation: _hoverAnnotation,
+      localPosition: localPosition,
+    ));
+    return opaque;
+  }
+
   @override
   void paint(PaintingContext context, Offset offset) {
+    // TODO(dkwingsmt): Replace layer-based annotation with pure annotation
+    // when the migration is done.
+    // https://github.com/flutter/flutter/issues/49568
     if (_annotationIsActive) {
-      // Annotated region layers are not retained because they do not create engine layers.
       final AnnotatedRegionLayer<MouseTrackerAnnotation> layer = AnnotatedRegionLayer<MouseTrackerAnnotation>(
         _hoverAnnotation,
         size: size,
         offset: offset,
         opaque: opaque,
+        skipSelfDuringAnnotationTreeSearch: true,
       );
-      context.pushLayer(layer, super.paint, offset);
+      final ContainerAnnotator annotator = SingleTypeAnnotator<MouseTrackerAnnotation>(
+        _searchAnnotations,
+        offset,
+        debugOwner: this,
+      );
+      context.pushAnnotator(annotator, () {
+        context.pushLayer(layer, super.paint, offset);
+      });
     } else {
       super.paint(context, offset);
     }
@@ -2847,6 +2869,17 @@ class RenderMouseRegion extends RenderProxyBox {
   @override
   void performResize() {
     size = constraints.biggest;
+  }
+
+  // TODO: Remove it?
+  @override
+  String toStringShort() {
+    String header = super.toStringShort();
+    if (size != null)
+      header += ' size=$size';
+    if (opaque)
+      header += ' opaque';
+    return header;
   }
 
   @override
@@ -5073,14 +5106,35 @@ class RenderAnnotatedRegion<T> extends RenderProxyBox {
   @override
   final bool alwaysNeedsCompositing = true;
 
+  bool _searchAnnotations(AnnotationResult<T> result, Offset localPosition, {@required bool onlyFirst}) {
+    if (size != null && !size.contains(localPosition)) {
+      return false;
+    }
+    result.add(AnnotationEntry<T>(
+      annotation: value,
+      localPosition: localPosition,
+    ));
+    return false;
+  }
+
   @override
   void paint(PaintingContext context, Offset offset) {
-    // Annotated region layers are not retained because they do not create engine layers.
+    // TODO(dkwingsmt): Replace layer-based annotation with pure annotation
+    // when the migration is done.
+    // https://github.com/flutter/flutter/issues/49568
     final AnnotatedRegionLayer<T> layer = AnnotatedRegionLayer<T>(
       value,
       size: sized ? size : null,
       offset: sized ? offset : null,
+      skipSelfDuringAnnotationTreeSearch: true,
     );
-    context.pushLayer(layer, super.paint, offset);
+    final ContainerAnnotator annotator = SingleTypeAnnotator<T>(
+      _searchAnnotations,
+      offset,
+      debugOwner: this,
+    );
+    context.pushAnnotator(annotator, () {
+      context.pushLayer(layer, super.paint, offset);
+    });
   }
 }

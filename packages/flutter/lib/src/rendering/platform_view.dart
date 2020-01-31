@@ -5,6 +5,7 @@
 import 'dart:async';
 import 'dart:ui';
 
+import 'package:flutter/annotation.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/semantics.dart';
@@ -755,10 +756,17 @@ class PlatformViewRenderBox extends RenderBox with _PlatformViewGestureMixin {
   @override
   void paint(PaintingContext context, Offset offset) {
     assert(_controller.viewId != null);
-    context.addLayer(PlatformViewLayer(
-            rect: offset & size,
-            viewId: _controller.viewId,
-            hoverAnnotation: _hoverAnnotation));
+    final ContainerAnnotator annotator = SingleTypeAnnotator<MouseTrackerAnnotation>(
+      _searchAnnotations,
+      offset,
+      debugOwner: this,
+    );
+    context.pushAnnotator(annotator, () {
+      context.addLayer(PlatformViewLayer(
+              rect: offset & size,
+              viewId: _controller.viewId,
+              hoverAnnotation: _hoverAnnotation));
+    });
   }
 
   @override
@@ -787,6 +795,17 @@ mixin _PlatformViewGestureMixin on RenderBox {
   /// for a hover. To support native hover gesture handling by platform views,
   /// we attach/detach this layer annotation as necessary.
   MouseTrackerAnnotation _hoverAnnotation;
+
+  bool _searchAnnotations(AnnotationResult<MouseTrackerAnnotation> result, Offset localPosition, { @required bool onlyFirst }) {
+    if (_hoverAnnotation == null || !size.contains(localPosition)) {
+      return false;
+    }
+    result.add(AnnotationEntry<MouseTrackerAnnotation>(
+      annotation: _hoverAnnotation,
+      localPosition: localPosition,
+    ));
+    return true;
+  }
 
   _HandlePointerEvent _handlePointerEvent;
 

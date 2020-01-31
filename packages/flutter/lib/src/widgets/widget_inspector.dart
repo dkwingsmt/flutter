@@ -478,11 +478,11 @@ class _ScreenshotPaintingContext extends PaintingContext {
   }
 
   @override
-  PaintingContext createChildContext(ContainerLayer childLayer, Rect bounds) {
+  PaintingContext createChildContext(ContainerLayer childLayer, Rect bounds, {ContainerAnnotator annotator}) {
     if (_data.foundTarget) {
       // We have already found the screenshotTarget in the layer tree
       // so we can optimize and use a standard PaintingContext.
-      return super.createChildContext(childLayer, bounds);
+      return super.createChildContext(childLayer, bounds, annotator: annotator);
     } else {
       return _ScreenshotPaintingContext(
         containerLayer: childLayer,

@@ -5,6 +5,7 @@
 import 'dart:developer';
 import 'dart:ui' as ui show PictureRecorder;
 
+import 'package:flutter/annotation.dart';
 import 'package:flutter/animation.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
@@ -16,6 +17,7 @@ import 'binding.dart';
 import 'debug.dart';
 import 'layer.dart';
 
+export 'package:flutter/annotation.dart' show ContainerAnnotator, Annotator;
 export 'package:flutter/foundation.dart' show FlutterError, InformationCollector, DiagnosticsNode, ErrorSummary, ErrorDescription, ErrorHint, DiagnosticsProperty, StringProperty, DoubleProperty, EnumProperty, FlagProperty, IntProperty, DiagnosticPropertiesBuilder;
 export 'package:flutter/gestures.dart' show HitTestEntry, HitTestResult;
 export 'package:flutter/painting.dart';
@@ -67,9 +69,22 @@ class PaintingContext extends ClipContext {
   @protected
   PaintingContext(this._containerLayer, this.estimatedBounds)
     : assert(_containerLayer != null),
-      assert(estimatedBounds != null);
+      assert(estimatedBounds != null),
+      _containerAnnotator = null;
+
+  @protected
+  PaintingContext.withAnnotator(this._containerLayer, this.estimatedBounds, ContainerAnnotator annotator)
+    : assert(_containerLayer != null),
+      assert(estimatedBounds != null),
+      assert(annotator != null),
+      _containerAnnotator = annotator {
+    _currentAnnotator = annotator;
+  }
 
   final ContainerLayer _containerLayer;
+
+  // Can be null, meaning children do not have any annotations.
+  final ContainerAnnotator _containerAnnotator;
 
   /// An estimate of the bounds within which the painting context's [canvas]
   /// will record painting commands. This can be useful for debugging.
@@ -125,18 +140,30 @@ class PaintingContext extends ClipContext {
       assert(debugAlsoPaintedParent || childLayer.attached);
       childLayer.removeAllChildren();
     }
+    OffsetAnnotator childAnnotator = child._annotator as OffsetAnnotator;
+    if (childAnnotator == null) {
+      assert(debugAlsoPaintedParent);
+      child._annotator = childAnnotator = OffsetAnnotator();
+    } else {
+      assert(childAnnotator is OffsetAnnotator);
+      assert(debugAlsoPaintedParent || childLayer.attached);
+      childAnnotator.removeAllChildren();
+    }
     assert(identical(childLayer, child._layer));
+    assert(identical(childAnnotator, child._annotator));
     assert(child._layer is OffsetLayer);
+    assert(child._annotator is OffsetAnnotator);
     assert(() {
       child._layer.debugCreator = child.debugCreator ?? child.runtimeType;
       return true;
     }());
-    childContext ??= PaintingContext(child._layer, child.paintBounds);
+    childContext ??= PaintingContext.withAnnotator(child._layer, child.paintBounds, child._annotator);
     child._paintWithContext(childContext, Offset.zero);
 
     // Double-check that the paint method did not replace the layer (the first
     // check is done in the [layer] setter itself).
     assert(identical(childLayer, child._layer));
+    assert(identical(childAnnotator, child._annotator));
     childContext.stopRecordingIfNeeded();
   }
 
@@ -214,6 +241,11 @@ class PaintingContext extends ClipContext {
     final OffsetLayer childOffsetLayer = child._layer as OffsetLayer;
     childOffsetLayer.offset = offset;
     appendLayer(child._layer);
+
+    assert(child._annotator is OffsetAnnotator);
+    final OffsetAnnotator childOffsetAnnotator = child._annotator as OffsetAnnotator;
+    childOffsetAnnotator.offset = offset;
+    _appendAnnotator(child._annotator);
   }
 
   /// Adds a layer to the recording requiring that the recording is already
@@ -230,6 +262,12 @@ class PaintingContext extends ClipContext {
     assert(!_isRecording);
     layer.remove();
     _containerLayer.append(layer);
+  }
+
+  ContainerAnnotator _currentAnnotator;
+  void _appendAnnotator(Annotator annotator) {
+    annotator.remove();
+    _currentAnnotator?.append(annotator);
   }
 
   bool get _isRecording {
@@ -349,6 +387,7 @@ class PaintingContext extends ClipContext {
   void addLayer(Layer layer) {
     stopRecordingIfNeeded();
     appendLayer(layer);
+    _appendAnnotator(LayerAdapterAnnotator(layer));
   }
 
   /// Appends the given layer to the recording, and calls the `painter` callback
@@ -378,7 +417,7 @@ class PaintingContext extends ClipContext {
   ///
   ///  * [addLayer], for pushing a layer without painting further contents
   ///    within it.
-  void pushLayer(ContainerLayer childLayer, PaintingContextCallback painter, Offset offset, { Rect childPaintBounds }) {
+  void pushLayer(ContainerLayer childLayer, PaintingContextCallback painter, Offset offset, { Rect childPaintBounds, ContainerAnnotator annotator }) {
     assert(painter != null);
     // If a layer is being reused, it may already contain children. We remove
     // them so that `painter` can add children that are relevant for this frame.
@@ -387,17 +426,36 @@ class PaintingContext extends ClipContext {
     }
     stopRecordingIfNeeded();
     appendLayer(childLayer);
-    final PaintingContext childContext = createChildContext(childLayer, childPaintBounds ?? estimatedBounds);
+    final ContainerAnnotator effectiveAnnotator = annotator ?? LayerAdapterAnnotator(childLayer, offset: offset);
+    _appendAnnotator(effectiveAnnotator);
+    final PaintingContext childContext = createChildContext(childLayer, childPaintBounds ?? estimatedBounds, annotator: effectiveAnnotator);
     painter(childContext, offset);
     childContext.stopRecordingIfNeeded();
+  }
+
+  void pushAnnotator(ContainerAnnotator annotator, VoidCallback painter) {
+    assert(annotator != null);
+    assert(painter != null);
+    if (_currentAnnotator == null) {
+      return painter();
+    }
+    if (annotator.hasChildren)
+      annotator.removeAllChildren();
+    final ContainerAnnotator localCurrentAnnotator = _currentAnnotator;
+    _appendAnnotator(annotator);
+    _currentAnnotator = annotator;
+    painter();
+    assert(_currentAnnotator == annotator);
+    _currentAnnotator = _currentAnnotator.parent;
+    assert(_currentAnnotator == localCurrentAnnotator);
   }
 
   /// Creates a painting context configured to paint into [childLayer].
   ///
   /// The `bounds` are estimated paint bounds for debugging purposes.
   @protected
-  PaintingContext createChildContext(ContainerLayer childLayer, Rect bounds) {
-    return PaintingContext(childLayer, bounds);
+  PaintingContext createChildContext(ContainerLayer childLayer, Rect bounds, { ContainerAnnotator annotator }) {
+    return PaintingContext.withAnnotator(childLayer, bounds, annotator);
   }
 
   /// Clip further painting using a rectangle.
@@ -439,15 +497,18 @@ class PaintingContext extends ClipContext {
   /// {@endtemplate}
   ClipRectLayer pushClipRect(bool needsCompositing, Offset offset, Rect clipRect, PaintingContextCallback painter, { Clip clipBehavior = Clip.hardEdge, ClipRectLayer oldLayer }) {
     final Rect offsetClipRect = clipRect.shift(offset);
+    final ContainerAnnotator annotator = ClipRectAnnotator(clipRect: offsetClipRect);
     if (needsCompositing) {
       final ClipRectLayer layer = oldLayer ?? ClipRectLayer();
       layer
         ..clipRect = offsetClipRect
         ..clipBehavior = clipBehavior;
-      pushLayer(layer, painter, offset, childPaintBounds: offsetClipRect);
+      pushLayer(layer, painter, offset, childPaintBounds: offsetClipRect, annotator: annotator);
       return layer;
     } else {
-      clipRectAndPaint(offsetClipRect, clipBehavior, offsetClipRect, () => painter(this, offset));
+      pushAnnotator(annotator, () {
+        clipRectAndPaint(offsetClipRect, clipBehavior, offsetClipRect, () => painter(this, offset));
+      });
       return null;
     }
   }
@@ -475,15 +536,18 @@ class PaintingContext extends ClipContext {
     assert(clipBehavior != null);
     final Rect offsetBounds = bounds.shift(offset);
     final RRect offsetClipRRect = clipRRect.shift(offset);
+    final ContainerAnnotator annotator = ClipRRectAnnotator(clipRRect: offsetClipRRect);
     if (needsCompositing) {
       final ClipRRectLayer layer = oldLayer ?? ClipRRectLayer();
       layer
         ..clipRRect = offsetClipRRect
         ..clipBehavior = clipBehavior;
-      pushLayer(layer, painter, offset, childPaintBounds: offsetBounds);
+      pushLayer(layer, painter, offset, childPaintBounds: offsetBounds, annotator: annotator);
       return layer;
     } else {
-      clipRRectAndPaint(offsetClipRRect, clipBehavior, offsetBounds, () => painter(this, offset));
+      pushAnnotator(annotator, () {
+        clipRRectAndPaint(offsetClipRRect, clipBehavior, offsetBounds, () => painter(this, offset));
+      });
       return null;
     }
   }
@@ -511,15 +575,18 @@ class PaintingContext extends ClipContext {
     assert(clipBehavior != null);
     final Rect offsetBounds = bounds.shift(offset);
     final Path offsetClipPath = clipPath.shift(offset);
+    final ContainerAnnotator annotator = ClipPathAnnotator(clipPath: offsetClipPath);
     if (needsCompositing) {
       final ClipPathLayer layer = oldLayer ?? ClipPathLayer();
       layer
         ..clipPath = offsetClipPath
         ..clipBehavior = clipBehavior;
-      pushLayer(layer, painter, offset, childPaintBounds: offsetBounds);
+      pushLayer(layer, painter, offset, childPaintBounds: offsetBounds, annotator: annotator);
       return layer;
     } else {
-      clipPathAndPaint(offsetClipPath, clipBehavior, offsetBounds, () => painter(this, offset));
+      pushAnnotator(annotator, () {
+        clipPathAndPaint(offsetClipPath, clipBehavior, offsetBounds, () => painter(this, offset));
+      });
       return null;
     }
   }
@@ -566,6 +633,7 @@ class PaintingContext extends ClipContext {
   TransformLayer pushTransform(bool needsCompositing, Offset offset, Matrix4 transform, PaintingContextCallback painter, { TransformLayer oldLayer }) {
     final Matrix4 effectiveTransform = Matrix4.translationValues(offset.dx, offset.dy, 0.0)
       ..multiply(transform)..translate(-offset.dx, -offset.dy);
+    final ContainerAnnotator annotator = TransformAnnotator(transform: effectiveTransform);
     if (needsCompositing) {
       final TransformLayer layer = oldLayer ?? TransformLayer();
       layer.transform = effectiveTransform;
@@ -574,13 +642,16 @@ class PaintingContext extends ClipContext {
         painter,
         offset,
         childPaintBounds: MatrixUtils.inverseTransformRect(effectiveTransform, estimatedBounds),
+        annotator: annotator,
       );
       return layer;
     } else {
       canvas
         ..save()
         ..transform(effectiveTransform.storage);
-      painter(this, offset);
+      pushAnnotator(annotator, () {
+        painter(this, offset);
+      });
       canvas.restore();
       return null;
     }
@@ -1990,6 +2061,22 @@ abstract class RenderObject extends AbstractNode with DiagnosticableTreeMixin im
     return result;
   }
 
+  @protected
+  ContainerAnnotator get annotator {
+    assert(!isRepaintBoundary || (_annotator == null || _annotator is OffsetAnnotator));
+    return _annotator;
+  }
+  ContainerAnnotator _annotator;
+
+  ContainerAnnotator get debugAnnotator {
+    ContainerAnnotator result;
+    assert(() {
+      result = _annotator;
+      return true;
+    }());
+    return result;
+  }
+
   bool _needsCompositingBitsUpdate = false; // set to true when a child is added
   /// Mark the compositing state for this render object as dirty.
   ///
@@ -2173,14 +2260,17 @@ abstract class RenderObject extends AbstractNode with DiagnosticableTreeMixin im
   /// tree, and has a composited layer.
   ///
   /// See [RenderView] for an example of how this function is used.
-  void scheduleInitialPaint(ContainerLayer rootLayer) {
+  void scheduleInitialPaint(ContainerLayer rootLayer, ContainerAnnotator rootAnnotator) {
     assert(rootLayer.attached);
+    assert(rootAnnotator.attached);
     assert(attached);
     assert(parent is! RenderObject);
     assert(!owner._debugDoingPaint);
     assert(isRepaintBoundary);
     assert(_layer == null);
+    assert(_annotator == null);
     _layer = rootLayer;
+    _annotator = rootAnnotator;
     assert(_needsPaint);
     owner._nodesNeedingPaint.add(this);
   }
@@ -2190,15 +2280,19 @@ abstract class RenderObject extends AbstractNode with DiagnosticableTreeMixin im
   /// called on).
   ///
   /// This might be called if, e.g., the device pixel ratio changed.
-  void replaceRootLayer(OffsetLayer rootLayer) {
+  void replaceRootLayer(OffsetLayer rootLayer, ContainerAnnotator rootAnnotator) {
     assert(rootLayer.attached);
+    assert(rootAnnotator.attached);
     assert(attached);
     assert(parent is! RenderObject);
     assert(!owner._debugDoingPaint);
     assert(isRepaintBoundary);
     assert(_layer != null); // use scheduleInitialPaint the first time
+    assert(_annotator != null); // use scheduleInitialPaint the first time
     _layer.detach();
     _layer = rootLayer;
+    _annotator.detach();
+    _annotator = rootAnnotator;
     markNeedsPaint();
   }
 

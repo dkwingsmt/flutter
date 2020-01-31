@@ -6,6 +6,7 @@ import 'dart:async';
 import 'dart:collection';
 import 'dart:ui' as ui;
 
+import 'package:flutter/annotation.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/painting.dart';
@@ -13,67 +14,7 @@ import 'package:vector_math/vector_math_64.dart';
 
 import 'debug.dart';
 
-/// Information collected for an annotation that is found in the layer tree.
-///
-/// See also:
-///
-///  * [Layer.findAnnotations], which create and use objects of this class.
-@immutable
-class AnnotationEntry<T> {
-  /// Create an entry of found annotation by providing the object and related
-  /// information.
-  const AnnotationEntry({
-    @required this.annotation,
-    @required this.localPosition,
-  }) : assert(localPosition != null);
-
-  /// The annotation object that is found.
-  final T annotation;
-
-  /// The target location described by the local coordinate space of the
-  /// annotation object.
-  final Offset localPosition;
-
-  @override
-  String toString() {
-    return '${objectRuntimeType(this, 'AnnotationEntry')}(annotation: $annotation, localPostion: $localPosition)';
-  }
-}
-
-/// Information collected about a list of annotations that are found in the
-/// layer tree.
-///
-/// See also:
-///
-///  * [AnnotationEntry], which are members of this class.
-///  * [Layer.findAllAnnotations], and [Layer.findAnnotations], which create and
-///    use an object of this class.
-class AnnotationResult<T> {
-  final List<AnnotationEntry<T>> _entries = <AnnotationEntry<T>>[];
-
-  /// Add a new entry to the end of the result.
-  ///
-  /// Usually, entries should be added in order from most specific to least
-  /// specific, typically during an upward walk of the tree.
-  void add(AnnotationEntry<T> entry) => _entries.add(entry);
-
-  /// An unmodifiable list of [AnnotationEntry] objects recorded.
-  ///
-  /// The first entry is the most specific, typically the one at the leaf of
-  /// tree.
-  Iterable<AnnotationEntry<T>> get entries => _entries;
-
-  /// An unmodifiable list of annotations recorded.
-  ///
-  /// The first entry is the most specific, typically the one at the leaf of
-  /// tree.
-  ///
-  /// It is similar to [entries] but does not contain other information.
-  Iterable<T> get annotations sync* {
-    for (final AnnotationEntry<T> entry in _entries)
-      yield entry.annotation;
-  }
-}
+export 'package:flutter/annotation.dart' show AnnotationEntry, AnnotationResult;
 
 /// A composited layer.
 ///
@@ -274,6 +215,10 @@ abstract class Layer extends AbstractNode with DiagnosticableTreeMixin {
     parent?._removeChild(this);
   }
 
+  @protected
+  @Deprecated('') // TODO(dkwingsmt): add deprecation message
+  bool duringAnnotationTreeSearch = false;
+
   /// Search this layer and its subtree for annotations of type `S` at the
   /// location described by `localPosition`.
   ///
@@ -324,6 +269,12 @@ abstract class Layer extends AbstractNode with DiagnosticableTreeMixin {
   /// annotation. However, the opacity that the parents return might be affected
   /// by their children, hence making all of its ancestors opaque to this type
   /// of annotation.
+  // TODO: Fix doc
+  @Deprecated(
+    'Annotations is no longer defined by layers. Use PaintingContext.pushAnnotator '
+    'to define, and use RenderView.search to search.'
+    'This feature was deprecated after v1.14.6.'
+  )
   @protected
   bool findAnnotations<S>(
     AnnotationResult<S> result,
@@ -353,6 +304,11 @@ abstract class Layer extends AbstractNode with DiagnosticableTreeMixin {
   ///  * [findAllAnnotations], which is similar but returns all annotations found
   ///    at the given position.
   ///  * [AnnotatedRegionLayer], for placing values in the layer tree.
+  @Deprecated(
+    'Annotations is no longer defined by layers. Use PaintingContext.pushAnnotator '
+    'to define, and use RenderView.search to search.'
+    'This feature was deprecated after v1.14.6.'
+  )
   S find<S>(Offset localPosition) {
     final AnnotationResult<S> result = AnnotationResult<S>();
     findAnnotations<S>(result, localPosition, onlyFirst: true);
@@ -384,8 +340,9 @@ abstract class Layer extends AbstractNode with DiagnosticableTreeMixin {
   ///    hence is preferred over [findAll].
   ///  * [AnnotatedRegionLayer], for placing values in the layer tree.
   @Deprecated(
-    'Use findAllAnnotations(...).annotations instead. '
-    'This feature was deprecated after v1.10.14.'
+    'Annotations is no longer defined by layers. Use PaintingContext.pushAnnotator '
+    'to define, and use RenderView.search to search.'
+    'This feature was deprecated after v1.14.6.'
   )
   Iterable<S> findAll<S>(Offset localPosition) {
     final AnnotationResult<S> result = findAllAnnotations(localPosition);
@@ -412,6 +369,11 @@ abstract class Layer extends AbstractNode with DiagnosticableTreeMixin {
   ///  * [find], which is similar but returns the first annotation found at the
   ///    given position.
   ///  * [AnnotatedRegionLayer], for placing values in the layer tree.
+  @Deprecated(
+    'Annotations is no longer defined by layers. Use PaintingContext.pushAnnotator '
+    'to define, and use RenderView.search to search.'
+    'This feature was deprecated after v1.14.6.'
+  )
   AnnotationResult<S> findAllAnnotations<S>(Offset localPosition) {
     final AnnotationResult<S> result = AnnotationResult<S>();
     findAnnotations<S>(result, localPosition, onlyFirst: false);
@@ -630,6 +592,7 @@ class PlatformViewLayer extends Layer {
   PlatformViewLayer({
     @required this.rect,
     @required this.viewId,
+    @Deprecated('') // TODO(dkwingsmt): add deprecation message
     this.hoverAnnotation,
   }) : assert(rect != null),
        assert(viewId != null);
@@ -659,6 +622,7 @@ class PlatformViewLayer extends Layer {
   ///
   ///  * [MouseRegion], which explains more about the mouse events and opacity
   ///    during annotation search.
+  @Deprecated('') // TODO(dkwingsmt): add deprecation message
   final MouseTrackerAnnotation hoverAnnotation;
 
   @override
@@ -678,12 +642,12 @@ class PlatformViewLayer extends Layer {
     if (hoverAnnotation == null || !rect.contains(localPosition)) {
       return false;
     }
-    if (S == MouseTrackerAnnotation) {
+    if (!duringAnnotationTreeSearch && S == MouseTrackerAnnotation) {
       final Object untypedValue = hoverAnnotation;
       final S typedValue = untypedValue as S;
       result.add(AnnotationEntry<S>(
         annotation: typedValue,
-        localPosition: localPosition,
+        localPosition: localPosition - rect.topLeft,
       ));
       return true;
     }
@@ -947,6 +911,8 @@ class ContainerLayer extends Layer {
   @override
   @protected
   bool findAnnotations<S>(AnnotationResult<S> result, Offset localPosition, { @required bool onlyFirst }) {
+    if (duringAnnotationTreeSearch)
+      return false;
     for (Layer child = lastChild; child != null; child = child.previousSibling) {
       final bool isAbsorbed = child.findAnnotations<S>(result, localPosition, onlyFirst: onlyFirst);
       if (isAbsorbed)
@@ -2453,6 +2419,7 @@ class FollowerLayer extends ContainerLayer {
 ///
 /// This layer is opaque to a type of annotation if any child is also opaque, or
 /// if [opaque] is true and the layer's annotation is added.
+@Deprecated('') // TODO(dkwingsmt): add deprecation message
 class AnnotatedRegionLayer<T> extends ContainerLayer {
   /// Creates a new layer that annotates its children with [value].
   ///
@@ -2462,6 +2429,7 @@ class AnnotatedRegionLayer<T> extends ContainerLayer {
     this.size,
     Offset offset,
     this.opaque = false,
+    this.skipSelfDuringAnnotationTreeSearch = false,
   }) : assert(value != null),
        assert(opaque != null),
        offset = offset ?? Offset.zero;
@@ -2513,6 +2481,9 @@ class AnnotatedRegionLayer<T> extends ContainerLayer {
   ///    render tree.
   final bool opaque;
 
+  @protected
+  final bool skipSelfDuringAnnotationTreeSearch;
+
   /// Searches the subtree for annotations of type `S` at the location
   /// `localPosition`, then adds the annotation [value] if applicable.
   ///
@@ -2542,7 +2513,7 @@ class AnnotatedRegionLayer<T> extends ContainerLayer {
     if (size != null && !(offset & size).contains(localPosition)) {
       return isAbsorbed;
     }
-    if (T == S) {
+    if (!(skipSelfDuringAnnotationTreeSearch && duringAnnotationTreeSearch) && T == S) {
       isAbsorbed = isAbsorbed || opaque;
       final Object untypedValue = value;
       final S typedValue = untypedValue as S;
@@ -2561,5 +2532,45 @@ class AnnotatedRegionLayer<T> extends ContainerLayer {
     properties.add(DiagnosticsProperty<Size>('size', size, defaultValue: null));
     properties.add(DiagnosticsProperty<Offset>('offset', offset, defaultValue: null));
     properties.add(DiagnosticsProperty<bool>('opaque', opaque, defaultValue: false));
+  }
+}
+
+@Deprecated('This class is only used during the deprecation of Layer.findAnnotations.')
+class LayerAdapterAnnotator extends ContainerAnnotator {
+  LayerAdapterAnnotator(this.layer, {this.offset});
+
+  final Layer layer;
+  final Offset offset;
+
+  bool _suppressSearchingChildrenLayers(Layer layer, ValueGetter<bool> task) {
+    assert(!layer.duringAnnotationTreeSearch);
+    layer.duringAnnotationTreeSearch = true;
+    final bool result = task();
+    assert(layer.duringAnnotationTreeSearch);
+    layer.duringAnnotationTreeSearch = false;
+    return result;
+  }
+
+  bool _searchSelf<S>(AnnotationResult<S> result, Offset localPosition) {
+    return _suppressSearchingChildrenLayers(
+      layer,
+      () => layer.findAnnotations(result, localPosition, onlyFirst: result.onlyFirst),
+    );
+  }
+
+  @override
+  bool search<S>(AnnotationResult<S> result, Offset localPosition) {
+    final bool absorbedByChildren = super.search(result, localPosition);
+    if (result.entries.isNotEmpty && result.onlyFirst)
+      return absorbedByChildren;
+    final bool absorbedBySelf = _searchSelf(result, localPosition);
+    return absorbedByChildren || absorbedBySelf;
+  }
+
+  @override
+  void debugFillProperties(DiagnosticPropertiesBuilder properties) {
+    super.debugFillProperties(properties);
+    properties.add(DiagnosticsProperty<Layer>('layer', layer));
+    properties.add(DiagnosticsProperty<Offset>('offset', offset));
   }
 }
