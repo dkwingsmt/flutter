@@ -40,6 +40,8 @@ class AnnotationEntry<T> {
   }
 }
 
+typedef AnnotationSearch<S> = bool Function(AnnotationResult<S> result, Offset localPosition);
+
 /// Information collected about a list of annotations that are found in the
 /// layer tree.
 ///

@@ -1288,15 +1288,19 @@ abstract class RenderSliver extends RenderObject {
   bool hitTest(SliverHitTestResult result, { @required double mainAxisPosition, @required double crossAxisPosition }) {
     if (mainAxisPosition >= 0.0 && mainAxisPosition < geometry.hitTestExtent &&
         crossAxisPosition >= 0.0 && crossAxisPosition < constraints.crossAxisExtent) {
-      if (hitTestChildren(result, mainAxisPosition: mainAxisPosition, crossAxisPosition: crossAxisPosition) ||
-          hitTestSelf(mainAxisPosition: mainAxisPosition, crossAxisPosition: crossAxisPosition)) {
+      final bool hitSelf = hitTestSelf(mainAxisPosition: mainAxisPosition, crossAxisPosition: crossAxisPosition);
+      final bool containsType = result.isTypedWithin(subtreeAnnotations());
+      if (hitSelf && !containsType)
+        return true;
+      final bool hitTarget = hitTestChildren(result, mainAxisPosition: mainAxisPosition, crossAxisPosition: crossAxisPosition) || hitSelf;
+      if (hitTarget && result.isTypedWithin(selfAnnotations)) {
         result.add(SliverHitTestEntry(
           this,
           mainAxisPosition: mainAxisPosition,
           crossAxisPosition: crossAxisPosition,
         ));
-        return true;
       }
+      return hitTarget;
     }
     return false;
   }

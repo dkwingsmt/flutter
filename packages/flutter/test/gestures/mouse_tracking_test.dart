@@ -74,8 +74,8 @@ void main() {
 
   // Set up a trivial test environment that includes one annotation, which adds
   // the enter, hover, and exit events it received to [logEvents].
-  MouseTrackerAnnotation _setUpWithOneAnnotation({List<PointerEvent> logEvents}) {
-    final MouseTrackerAnnotation annotation = MouseTrackerAnnotation(
+  MouseTrackerTarget _setUpWithOneAnnotation({List<PointerEvent> logEvents}) {
+    final MouseTrackerTarget annotation = _TestMouseTrackerTarget(
       onEnter: (PointerEnterEvent event) => logEvents.add(event),
       onHover: (PointerHoverEvent event) => logEvents.add(event),
       onExit: (PointerExitEvent event) => logEvents.add(event),
@@ -281,7 +281,7 @@ void main() {
   test('should correctly handle when the annotation appears or disappears on the pointer', () {
     bool isInHitRegion;
     final List<Object> events = <PointerEvent>[];
-    final MouseTrackerAnnotation annotation = MouseTrackerAnnotation(
+    final MouseTrackerTarget annotation = _TestMouseTrackerTarget(
       onEnter: (PointerEnterEvent event) => events.add(event),
       onHover: (PointerHoverEvent event) => events.add(event),
       onExit: (PointerExitEvent event) => events.add(event),
@@ -329,7 +329,7 @@ void main() {
   test('should correctly handle when the annotation moves in or out of the pointer', () {
     bool isInHitRegion;
     final List<Object> events = <PointerEvent>[];
-    final MouseTrackerAnnotation annotation = MouseTrackerAnnotation(
+    final MouseTrackerTarget annotation = _TestMouseTrackerTarget(
       onEnter: (PointerEnterEvent event) => events.add(event),
       onHover: (PointerHoverEvent event) => events.add(event),
       onExit: (PointerExitEvent event) => events.add(event),
@@ -378,7 +378,7 @@ void main() {
   test('should correctly handle when the pointer is added or removed on the annotation', () {
     bool isInHitRegion;
     final List<Object> events = <PointerEvent>[];
-    final MouseTrackerAnnotation annotation = MouseTrackerAnnotation(
+    final MouseTrackerTarget annotation = _TestMouseTrackerTarget(
       onEnter: (PointerEnterEvent event) => events.add(event),
       onHover: (PointerHoverEvent event) => events.add(event),
       onExit: (PointerExitEvent event) => events.add(event),
@@ -416,7 +416,7 @@ void main() {
   test('should correctly handle when the pointer moves in or out of the annotation', () {
     bool isInHitRegion;
     final List<Object> events = <PointerEvent>[];
-    final MouseTrackerAnnotation annotation = MouseTrackerAnnotation(
+    final MouseTrackerTarget annotation = _TestMouseTrackerTarget(
       onEnter: (PointerEnterEvent event) => events.add(event),
       onHover: (PointerHoverEvent event) => events.add(event),
       onExit: (PointerExitEvent event) => events.add(event),
@@ -474,10 +474,10 @@ void main() {
   test('should not flip out if not all mouse events are listened to', () {
     bool isInHitRegionOne = true;
     bool isInHitRegionTwo = false;
-    final MouseTrackerAnnotation annotation1 = MouseTrackerAnnotation(
+    final MouseTrackerTarget annotation1 = _TestMouseTrackerTarget(
       onEnter: (PointerEnterEvent event) {}
     );
-    final MouseTrackerAnnotation annotation2 = MouseTrackerAnnotation(
+    final MouseTrackerTarget annotation2 = _TestMouseTrackerTarget(
       onExit: (PointerExitEvent event) {}
     );
     _setUpMouseAnnotationFinder((Offset position) sync* {
@@ -510,12 +510,12 @@ void main() {
 
     bool isInB;
     final List<String> logs = <String>[];
-    final MouseTrackerAnnotation annotationA = MouseTrackerAnnotation(
+    final MouseTrackerTarget annotationA = _TestMouseTrackerTarget(
       onEnter: (PointerEnterEvent event) => logs.add('enterA'),
       onExit: (PointerExitEvent event) => logs.add('exitA'),
       onHover: (PointerHoverEvent event) => logs.add('hoverA'),
     );
-    final MouseTrackerAnnotation annotationB = MouseTrackerAnnotation(
+    final MouseTrackerTarget annotationB = _TestMouseTrackerTarget(
       onEnter: (PointerEnterEvent event) => logs.add('enterB'),
       onExit: (PointerExitEvent event) => logs.add('exitB'),
       onHover: (PointerHoverEvent event) => logs.add('hoverB'),
@@ -563,12 +563,12 @@ void main() {
     bool isInA;
     bool isInB;
     final List<String> logs = <String>[];
-    final MouseTrackerAnnotation annotationA = MouseTrackerAnnotation(
+    final MouseTrackerTarget annotationA = _TestMouseTrackerTarget(
       onEnter: (PointerEnterEvent event) => logs.add('enterA'),
       onExit: (PointerExitEvent event) => logs.add('exitA'),
       onHover: (PointerHoverEvent event) => logs.add('hoverA'),
     );
-    final MouseTrackerAnnotation annotationB = MouseTrackerAnnotation(
+    final MouseTrackerTarget annotationB = _TestMouseTrackerTarget(
       onEnter: (PointerEnterEvent event) => logs.add('enterB'),
       onExit: (PointerExitEvent event) => logs.add('exitB'),
       onHover: (PointerHoverEvent event) => logs.add('hoverB'),
@@ -765,4 +765,36 @@ class _EventListCriticalFieldsMatcher extends Matcher {
 
 Matcher _equalToEventsOnCriticalFields(List<PointerEvent> source) {
   return _EventListCriticalFieldsMatcher(source);
+}
+
+class _TestMouseTrackerTarget with MouseTrackerTarget {
+  const _TestMouseTrackerTarget({
+    PointerEnterEventListener onEnter,
+    PointerHoverEventListener onHover,
+    PointerExitEventListener onExit,
+  }) : _onEnter = onEnter,
+       _onHover = onHover,
+       _onExit = onExit;
+
+  final PointerEnterEventListener _onEnter;
+  final PointerHoverEventListener _onHover;
+  final PointerExitEventListener _onExit;
+
+  @override
+  void handleEnter(PointerEnterEvent event) {
+    if (_onEnter != null)
+      _onEnter(event);
+  }
+
+  @override
+  void handleHover(PointerHoverEvent event) {
+    if (_onHover != null)
+      _onHover(event);
+  }
+
+  @override
+  void handleExit(PointerExitEvent event) {
+    if (_onExit != null)
+      _onExit(event);
+  }
 }

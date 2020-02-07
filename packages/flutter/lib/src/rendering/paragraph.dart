@@ -56,8 +56,9 @@ class TextParentData extends ContainerBoxParentData<RenderBox> {
 /// A render object that displays a paragraph of text.
 class RenderParagraph extends RenderBox
     with ContainerRenderObjectMixin<RenderBox, TextParentData>,
-             RenderBoxContainerDefaultsMixin<RenderBox, TextParentData>,
-                  RelayoutWhenSystemFontsChangeMixin {
+         RenderBoxContainerDefaultsMixin<RenderBox, TextParentData>,
+         RelayoutWhenSystemFontsChangeMixin,
+         SingleAnnotationRenderObject<HitTestTarget> {
   /// Creates a paragraph render object.
   ///
   /// The [text], [textAlign], [textDirection], [overflow], [softWrap], and

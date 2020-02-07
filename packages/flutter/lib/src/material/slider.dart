@@ -648,7 +648,8 @@ class _SliderRenderObjectWidget extends LeafRenderObjectWidget {
   }
 }
 
-class _RenderSlider extends RenderBox with RelayoutWhenSystemFontsChangeMixin {
+class _RenderSlider extends RenderBox
+    with RelayoutWhenSystemFontsChangeMixin, SingleAnnotationRenderObject<HitTestTarget> {
   _RenderSlider({
     @required double value,
     int divisions,

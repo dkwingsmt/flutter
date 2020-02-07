@@ -75,7 +75,7 @@ Set<Type> _factoriesTypeSet<T>(Set<Factory<T>> factories) {
 ///
 ///  * [AndroidView] which is a widget that is used to show an Android view.
 ///  * [PlatformViewsService] which is a service for controlling platform views.
-class RenderAndroidView extends RenderBox with _PlatformViewGestureMixin {
+class RenderAndroidView extends RenderBox with MouseTrackerTarget, _PlatformViewGestureMixin {
 
   /// Creates a render object for an Android view.
   RenderAndroidView({
@@ -248,7 +248,7 @@ class RenderAndroidView extends RenderBox with _PlatformViewGestureMixin {
 ///
 ///  * [UiKitView] which is a widget that is used to show a UIView.
 ///  * [PlatformViewsService] which is a service for controlling platform views.
-class RenderUiKitView extends RenderBox {
+class RenderUiKitView extends RenderBox with SingleAnnotationRenderObject<HitTestTarget> {
   /// Creates a render object for an iOS UIView.
   ///
   /// The `viewId`, `hitTestBehavior`, and `gestureRecognizers` parameters must not be null.
@@ -329,7 +329,8 @@ class RenderUiKitView extends RenderBox {
   bool hitTest(BoxHitTestResult result, { Offset position }) {
     if (hitTestBehavior == PlatformViewHitTestBehavior.transparent || !size.contains(position))
       return false;
-    result.add(BoxHitTestEntry(this, position));
+    if (result.isTypedWithin(selfAnnotations))
+      result.add(BoxHitTestEntry(this, position));
     return hitTestBehavior == PlatformViewHitTestBehavior.opaque;
   }
 
@@ -693,7 +694,7 @@ class _MotionEventsDispatcher {
 ///
 /// [PlatformViewRenderBox] presents a platform view by adding a [PlatformViewLayer] layer,
 /// integrates it with the gesture arenas system and adds relevant semantic nodes to the semantics tree.
-class PlatformViewRenderBox extends RenderBox with _PlatformViewGestureMixin {
+class PlatformViewRenderBox extends RenderBox with MouseTrackerTarget, _PlatformViewGestureMixin {
 
   /// Creating a render object for a [PlatformViewSurface].
   ///
@@ -771,7 +772,7 @@ class PlatformViewRenderBox extends RenderBox with _PlatformViewGestureMixin {
 }
 
 /// The Mixin handling the pointer events and gestures of a platform view render box.
-mixin _PlatformViewGestureMixin on RenderBox {
+mixin _PlatformViewGestureMixin on RenderBox, MouseTrackerTarget {
 
   /// How to behave during hit testing.
   // The implicit setter is enough here as changing this value will just affect
@@ -815,12 +816,19 @@ mixin _PlatformViewGestureMixin on RenderBox {
     if (hitTestBehavior == PlatformViewHitTestBehavior.transparent || !size.contains(position)) {
       return false;
     }
-    result.add(BoxHitTestEntry(this, position));
+    if (result.isTypedWithin(selfAnnotations))
+      result.add(BoxHitTestEntry(this, position));
     return hitTestBehavior == PlatformViewHitTestBehavior.opaque;
   }
 
   @override
   bool hitTestSelf(Offset position) => hitTestBehavior != PlatformViewHitTestBehavior.transparent;
+
+  @override
+  HashSet<Type> get selfAnnotations => _selfAnnotations;
+  final HashSet<Type> _selfAnnotations = HashSet<Type>()
+    ..add(HitTestTarget)
+    ..add(MouseTrackerTarget);
 
   @override
   void handleEvent(PointerEvent event, HitTestEntry entry) {
@@ -830,13 +838,16 @@ mixin _PlatformViewGestureMixin on RenderBox {
   }
 
   @override
+  void handleHover(PointerHoverEvent event) {
+    if (_handlePointerEvent != null)
+      _handlePointerEvent(event);
+  }
+
+  @override
   void attach(PipelineOwner owner) {
     super.attach(owner);
     assert(_hoverAnnotation == null);
-    _hoverAnnotation = MouseTrackerAnnotation(onHover: (PointerHoverEvent event) {
-      if (_handlePointerEvent != null)
-        _handlePointerEvent(event);
-    });
+    _hoverAnnotation = MouseTrackerAnnotation(onHover: handleHover);
   }
 
   @override

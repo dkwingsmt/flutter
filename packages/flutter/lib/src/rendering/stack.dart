@@ -658,6 +658,7 @@ class RenderIndexedStack extends RenderStack {
     if (_index != value) {
       _index = value;
       markNeedsLayout();
+      markNeedsAnnotate();
     }
   }
 
@@ -690,6 +691,15 @@ class RenderIndexedStack extends RenderStack {
         return child.hitTest(result, position: transformed);
       },
     );
+  }
+
+  @protected
+  @override
+  HashSet<Type> childrenAnnotations() {
+    if (firstChild == null || index == null)
+      return null;
+    final RenderBox child = _childAtIndex();
+    return child?.subtreeAnnotations();
   }
 
   @override

@@ -271,13 +271,11 @@ void main() {
             RawMaterialButton(
               materialTapTargetSize: MaterialTapTargetSize.padded,
               onPressed: () { },
-              child: SizedBox(
+              child: const SizedBox(
                 key: key,
                 width: 8.0,
                 height: 8.0,
-                child: Container(
-                  color: const Color(0xFFAABBCC),
-                ),
+                child: Listener(behavior: HitTestBehavior.opaque),
               ),
             ),
         ]),

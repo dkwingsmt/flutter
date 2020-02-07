@@ -1020,7 +1020,7 @@ class AutomatedTestWidgetsFlutterBinding extends TestWidgetsFlutterBinding {
               if (_phase != EnginePhase.composite) {
                 pipelineOwner.flushSemantics();
                 assert(_phase == EnginePhase.flushSemantics ||
-                       _phase == EnginePhase.sendSemanticsUpdate);
+                      _phase == EnginePhase.sendSemanticsUpdate);
               }
             }
           }

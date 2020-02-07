@@ -45,16 +45,22 @@ abstract class HitTestTarget {
   void handleEvent(PointerEvent event, HitTestEntry entry);
 }
 
-/// Data collected during a hit test about a specific [HitTestTarget].
+/// Data collected during a hit test about a specific target.
 ///
 /// Subclass this object to pass additional information from the hit test phase
 /// to the event propagation phase.
 class HitTestEntry {
   /// Creates a hit test entry.
-  HitTestEntry(this.target);
+  HitTestEntry(this._target);
 
-  /// The [HitTestTarget] encountered during the hit test.
-  final HitTestTarget target;
+  /// The object encountered during the hit test.
+  HitTestTarget get target => targetAs<HitTestTarget>();
+  final Object _target;
+
+  T targetAs<T>() {
+    assert(_target is T, 'An unexpected $_target is received for a hit test of type $T.');
+    return _target as T;
+  }
 
   @override
   String toString() => '${describeIdentity(this)}($target)';
@@ -74,7 +80,7 @@ class HitTestEntry {
 /// The result of performing a hit test.
 class HitTestResult {
   /// Creates an empty hit test result.
-  HitTestResult()
+  HitTestResult({this.type = HitTestTarget, this.stopAtFirstResult = false})
      : _path = <HitTestEntry>[],
        _transforms = Queue<Matrix4>();
 
@@ -86,7 +92,19 @@ class HitTestResult {
   /// structure to store [HitTestEntry]s).
   HitTestResult.wrap(HitTestResult result)
      : _path = result._path,
-       _transforms = result._transforms;
+       _transforms = result._transforms,
+       type = result.type,
+       stopAtFirstResult = result.stopAtFirstResult;
+
+  static HitTestResult create<T>({bool stopAtFirstResult = false}) {
+    return HitTestResult(type: T, stopAtFirstResult: stopAtFirstResult);
+  }
+
+  final Type type;
+  final bool stopAtFirstResult;
+
+  bool get isEmpty => _path.isEmpty;
+  bool get isNotEmpty => _path.isNotEmpty;
 
   /// An unmodifiable list of [HitTestEntry] objects recorded during the hit test.
   ///
@@ -98,6 +116,8 @@ class HitTestResult {
 
   final Queue<Matrix4> _transforms;
 
+  bool isTypedWithin(Set<Type> types) => types != null && types.contains(type);
+
   /// Add a [HitTestEntry] to the path.
   ///
   /// The new entry is added at the end of the path, which means entries should
@@ -105,6 +125,7 @@ class HitTestResult {
   /// upward walk of the tree being hit tested.
   void add(HitTestEntry entry) {
     assert(entry._transform == null);
+    // TODO(dkwingsmt): assert(entry.target is type);
     entry._transform = _transforms.isEmpty ? null : _transforms.last;
     _path.add(entry);
   }
@@ -180,4 +201,10 @@ class HitTestResult {
 
   @override
   String toString() => 'HitTestResult(${_path.isEmpty ? "<empty path>" : _path.join(", ")})';
+}
+
+abstract class ValueTarget<T> {
+  factory ValueTarget._() => null;
+
+  T get value;
 }

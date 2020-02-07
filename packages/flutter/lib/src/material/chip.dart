@@ -4,6 +4,7 @@
 
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/painting.dart';
 import 'package:flutter/rendering.dart';
@@ -1969,8 +1970,12 @@ class _RenderChipRedirectingHitDetection extends RenderConstrainedBox {
 
   @override
   bool hitTest(BoxHitTestResult result, { Offset position }) {
-    if (!size.contains(position))
+    assert(_debugHitTestDiagnostic(this, 'Enter with $position'));
+    if (!size.contains(position)) {
+      assert(_debugHitTestDiagnostic(this,
+        'Bail out because size $size does not contain position $position'));
       return false;
+    }
     // Only redirects hit detection which occurs above and below the render object.
     // In order to make this assumption true, I have removed the minimum width
     // constraints, since any reasonable chip would be at least that wide.
@@ -2511,9 +2516,27 @@ class _RenderChip extends RenderBox {
     return Size(deleteIconWidth, deleteIconHeight);
   }
 
+  @protected
+  @override
+  HashSet<Type> childrenAnnotations() {
+    final HashSet<Type> result = HashSet<Type>();
+    void _mergeChildAnnotations(RenderObject object) {
+      final HashSet<Type> childResult = object?.subtreeAnnotations();
+      if (childResult != null)
+        result.addAll(childResult);
+    }
+    _mergeChildAnnotations(deleteIcon);
+    _mergeChildAnnotations(label);
+    _mergeChildAnnotations(avatar);
+    return result.isEmpty ? null : result;
+  }
+
   @override
   bool hitTest(BoxHitTestResult result, { Offset position }) {
+    _debugHitTestDiagnostic(this, 'Enter with $position');
     if (!size.contains(position)) {
+      assert(_debugHitTestDiagnostic(this,
+        'Bail out because size $size does not contain position $position'));
       return false;
     }
     final bool tapIsOnDeleteIcon = _tapIsOnDeleteIcon(
@@ -2525,6 +2548,8 @@ class _RenderChip extends RenderBox {
     final RenderBox hitTestChild = tapIsOnDeleteIcon
         ? (deleteIcon ?? label ?? avatar)
         : (label ?? avatar);
+    assert(_debugHitTestDiagnostic(this,
+      'Choosing hitTestChild $hitTestChild since tapIsOnDeleteIcon is $tapIsOnDeleteIcon'));
 
     if (hitTestChild != null) {
       final Offset center = hitTestChild.size.center(Offset.zero);
@@ -2947,4 +2972,14 @@ bool _tapIsOnDeleteIcon({
     }
   }
   return tapIsOnDeleteIcon;
+}
+
+bool _debugHitTestDiagnostic(RenderBox target, String message) {
+  assert(() {
+    if (debugPrintHitTestDiagnostics) {
+      debugPrint('HitTest ${describeIdentity(target)} ❙ $message');
+    }
+    return true;
+  }());
+  return true;
 }

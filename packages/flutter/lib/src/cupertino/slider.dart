@@ -313,7 +313,7 @@ const Duration _kDiscreteTransitionDuration = Duration(milliseconds: 500);
 
 const double _kAdjustmentUnit = 0.1; // Matches iOS implementation of material slider.
 
-class _RenderCupertinoSlider extends RenderConstrainedBox {
+class _RenderCupertinoSlider extends RenderConstrainedBox with SingleAnnotationRenderObject<HitTestTarget> {
   _RenderCupertinoSlider({
     @required double value,
     int divisions,

@@ -4,6 +4,7 @@
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/gestures.dart';
 
 void main() {
   final TestWidgetsFlutterBinding binding =
@@ -11,10 +12,13 @@ void main() {
   const double _kOpenScale = 1.1;
 
   Widget _getChild() {
-    return Container(
-      width: 300.0,
-      height: 100.0,
-      color: CupertinoColors.activeOrange,
+    return Listener(
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        width: 300.0,
+        height: 100.0,
+        color: CupertinoColors.activeOrange,
+      ),
     );
   }
 

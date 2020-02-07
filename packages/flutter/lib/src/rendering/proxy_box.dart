@@ -24,7 +24,8 @@ export 'package:flutter/gestures.dart' show
   PointerDownEvent,
   PointerMoveEvent,
   PointerUpEvent,
-  PointerCancelEvent;
+  PointerCancelEvent,
+  ValueTarget;
 
 /// A base class for render boxes that resemble their children.
 ///
@@ -120,6 +121,9 @@ mixin RenderProxyBoxMixin<T extends RenderBox> on RenderBox, RenderObjectWithChi
   }
 
   @override
+  HashSet<Type> get selfAnnotations => null;
+
+  @override
   void applyPaintTransform(RenderObject child, Matrix4 transform) { }
 
   @override
@@ -161,11 +165,20 @@ abstract class RenderProxyBoxWithHitTestBehavior extends RenderProxyBox {
 
   @override
   bool hitTest(BoxHitTestResult result, { Offset position }) {
-    bool hitTarget = false;
-    if (size.contains(position)) {
-      hitTarget = hitTestChildren(result, position: position) || hitTestSelf(position);
-      if (hitTarget || behavior == HitTestBehavior.translucent)
-        result.add(BoxHitTestEntry(this, position));
+    assert(_debugHitTestDiagnostic(this, 'Enter with position $position'));
+    if (!size.contains(position)) {
+      assert(_debugHitTestDiagnostic(this,
+        'Bail out because size $size does not contain position $position'));
+      return false;
+    }
+    final bool hitTarget = hitTestChildren(result, position: position) || hitTestSelf(position);
+    if ((hitTarget || behavior == HitTestBehavior.translucent)
+        && result.isTypedWithin(selfAnnotations)) {
+      result.add(BoxHitTestEntry(this, position));
+      assert(_debugHitTestDiagnostic(this, 'Add entry'));
+    } else {
+      assert(_debugHitTestDiagnostic(this,
+        'Did not add entry because hitTarget is false and behavior is $behavior'));
     }
     return hitTarget;
   }
@@ -2570,7 +2583,8 @@ typedef PointerSignalEventListener = void Function(PointerSignalEvent event);
 /// If it has a child, defers to the child for sizing behavior.
 ///
 /// If it does not have a child, grows to fit the parent-provided constraints.
-class RenderPointerListener extends RenderProxyBoxWithHitTestBehavior {
+class RenderPointerListener extends RenderProxyBoxWithHitTestBehavior
+  with SingleAnnotationRenderObject<HitTestTarget> {
   /// Creates a render object that forwards pointer events to callbacks.
   ///
   /// The [behavior] argument defaults to [HitTestBehavior.deferToChild].
@@ -2658,7 +2672,8 @@ class RenderPointerListener extends RenderProxyBoxWithHitTestBehavior {
 ///
 ///  * [MouseRegion], a widget that listens to hover events using
 ///    [RenderMouseRegion].
-class RenderMouseRegion extends RenderProxyBox {
+class RenderMouseRegion extends RenderProxyBox
+  with MouseTrackerTarget, SingleAnnotationRenderObject<MouseTrackerTarget> {
   /// Creates a render object that forwards pointer events to callbacks.
   ///
   /// All parameters are optional. By default this method creates an opaque
@@ -2677,9 +2692,9 @@ class RenderMouseRegion extends RenderProxyBox {
        _annotationIsActive = false,
        super(child) {
     _hoverAnnotation = MouseTrackerAnnotation(
-      onEnter: _handleEnter,
-      onHover: _handleHover,
-      onExit: _handleExit,
+      onEnter: handleEnter,
+      onHover: handleHover,
+      onExit: handleExit,
     );
   }
 
@@ -2722,7 +2737,8 @@ class RenderMouseRegion extends RenderProxyBox {
     }
   }
   PointerEnterEventListener _onEnter;
-  void _handleEnter(PointerEnterEvent event) {
+  @override
+  void handleEnter(PointerEnterEvent event) {
     if (_onEnter != null)
       _onEnter(event);
   }
@@ -2737,7 +2753,8 @@ class RenderMouseRegion extends RenderProxyBox {
     }
   }
   PointerHoverEventListener _onHover;
-  void _handleHover(PointerHoverEvent event) {
+  @override
+  void handleHover(PointerHoverEvent event) {
     if (_onHover != null)
       _onHover(event);
   }
@@ -2759,7 +2776,8 @@ class RenderMouseRegion extends RenderProxyBox {
     }
   }
   PointerExitEventListener _onExit;
-  void _handleExit(PointerExitEvent event) {
+  @override
+  void handleExit(PointerExitEvent event) {
     if (_onExit != null)
       _onExit(event);
   }
@@ -2802,6 +2820,7 @@ class RenderMouseRegion extends RenderProxyBox {
     if (annotationWasActive != value) {
       markNeedsPaint();
       markNeedsCompositingBitsUpdate();
+      markNeedsAnnotate();
     }
   }
 
@@ -2824,6 +2843,29 @@ class RenderMouseRegion extends RenderProxyBox {
   }
 
   bool _annotationIsActive;
+
+  @override
+  bool hitTest(BoxHitTestResult result, {Offset position}) {
+    if (!size.contains(position))
+      return false;
+    final bool hitSelf = hitTestSelf(position);
+    if (hitSelf && opaque && !result.isTypedWithin(subtreeAnnotations()))
+      return true;
+    final bool hitChildren = hitTestChildren(result, position: position);
+    if (result.isNotEmpty && result.stopAtFirstResult)
+      return hitChildren;
+    final bool hitTarget = hitSelf && result.isTypedWithin(selfAnnotations);
+    if (hitTarget)
+      result.add(BoxHitTestEntry(this, position));
+    // print('${describeIdentity(this)} hitChildren $hitChildren hitTarget $hitTarget opaque $opaque');
+    return hitChildren || (hitSelf && opaque);
+  }
+
+  @override
+  bool hitTestSelf(Offset position) => true;
+
+  @override
+  HashSet<Type> get selfAnnotations => _annotationIsActive ? super.selfAnnotations : null;
 
   @override
   bool get needsCompositing => super.needsCompositing || _annotationIsActive;
@@ -3359,13 +3401,29 @@ class RenderMetaData extends RenderProxyBoxWithHitTestBehavior {
   ///
   /// The [behavior] argument defaults to [HitTestBehavior.deferToChild].
   RenderMetaData({
-    this.metaData,
+    dynamic metaData,
     HitTestBehavior behavior = HitTestBehavior.deferToChild,
     RenderBox child,
-  }) : super(behavior: behavior, child: child);
+  }) : super(behavior: behavior, child: child) {
+    this.metaData = metaData;
+  }
 
   /// Opaque meta data ignored by the render tree
-  dynamic metaData;
+  dynamic get metaData => _metaData;
+  dynamic _metaData;
+  set metaData(dynamic value) {
+    if (value == _metaData)
+      return;
+    if (_metaData.runtimeType != value.runtimeType) {
+      markNeedsAnnotate();
+      _selfAnnotations = value == null ? null : HashSet<Type>()..add(value.runtimeType as Type);
+    }
+    _metaData = value;
+  }
+
+  @override
+  HashSet<Type> get selfAnnotations => _selfAnnotations;
+  HashSet<Type> _selfAnnotations;
 
   @override
   void debugFillProperties(DiagnosticPropertiesBuilder properties) {
@@ -5031,7 +5089,9 @@ class RenderFollowerLayer extends RenderProxyBox {
 ///
 ///  * [Layer.find], for an example of how this value is retrieved.
 ///  * [AnnotatedRegionLayer], the layer this render object creates.
-class RenderAnnotatedRegion<T> extends RenderProxyBox {
+class RenderAnnotatedRegion<T> extends RenderProxyBox
+  with SingleAnnotationRenderObject<ValueTarget<T>>
+  implements ValueTarget<T> {
 
   /// Creates a new [RenderAnnotatedRegion] to insert [value] into the
   /// layer tree.
@@ -5051,6 +5111,7 @@ class RenderAnnotatedRegion<T> extends RenderProxyBox {
        super(child);
 
   /// A value which can be retrieved using [Layer.find].
+  @override
   T get value => _value;
   T _value;
   set value (T newValue) {
@@ -5071,6 +5132,9 @@ class RenderAnnotatedRegion<T> extends RenderProxyBox {
   }
 
   @override
+  bool hitTestSelf(Offset position) => true;
+
+  @override
   final bool alwaysNeedsCompositing = true;
 
   @override
@@ -5083,4 +5147,14 @@ class RenderAnnotatedRegion<T> extends RenderProxyBox {
     );
     context.pushLayer(layer, super.paint, offset);
   }
+}
+
+bool _debugHitTestDiagnostic(RenderBox target, String message) {
+  assert(() {
+    if (debugPrintHitTestDiagnostics) {
+      debugPrint('HitTest ${describeIdentity(target)} ❙ $message');
+    }
+    return true;
+  }());
+  return true;
 }

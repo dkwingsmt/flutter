@@ -4,6 +4,7 @@
 
 import 'dart:math' as math;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter/rendering.dart';
@@ -34,12 +35,12 @@ void main() {
           elevation: 2.0,
           color: const Color(0xFF0000FF),
           shadowColor: const Color(0xFF00FF00),
-          child: Container(color: const Color(0xFF0000FF)),
+          child: Listener(onPointerDown: (_) {}, behavior: HitTestBehavior.opaque),
         ),
       );
 
-      final RenderPhysicalShape renderPhysicalShape =
-        tester.renderObject(find.byType(PhysicalShape));
+      final RenderPointerListener renderPointerListener =
+        tester.renderObject(find.byType(Listener));
 
       // The viewport is 800x600, the CircleBorder is centered and fits
       // the shortest edge, so we get a circle of radius 300, centered at
@@ -48,10 +49,10 @@ void main() {
       // We test by sampling a few points around the left-most point of the
       // circle (100, 300).
 
-      expect(tester.hitTestOnBinding(const Offset(99.0, 300.0)), doesNotHit(renderPhysicalShape));
-      expect(tester.hitTestOnBinding(const Offset(100.0, 300.0)), hits(renderPhysicalShape));
-      expect(tester.hitTestOnBinding(const Offset(100.0, 299.0)), doesNotHit(renderPhysicalShape));
-      expect(tester.hitTestOnBinding(const Offset(100.0, 301.0)), doesNotHit(renderPhysicalShape));
+      expect(tester.hitTestOnBinding(const Offset(99.0, 300.0)), doesNotHit(renderPointerListener));
+      expect(tester.hitTestOnBinding(const Offset(100.0, 300.0)), hits(renderPointerListener));
+      expect(tester.hitTestOnBinding(const Offset(100.0, 299.0)), doesNotHit(renderPointerListener));
+      expect(tester.hitTestOnBinding(const Offset(100.0, 301.0)), doesNotHit(renderPointerListener));
     }, skip: isBrowser);
 
   });

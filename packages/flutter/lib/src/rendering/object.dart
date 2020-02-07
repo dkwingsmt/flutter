@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import 'dart:collection' show HashSet;
 import 'dart:developer';
 import 'dart:ui' as ui show PictureRecorder;
 
@@ -30,6 +31,8 @@ class ParentData {
   @protected
   @mustCallSuper
   void detach() { }
+
+  bool recordedNeedsAnnotation = false;
 
   @override
   String toString() => '<none>';
@@ -1230,6 +1233,7 @@ abstract class RenderObject extends AbstractNode with DiagnosticableTreeMixin im
   ///  * [BindingBase.reassembleApplication]
   void reassemble() {
     markNeedsLayout();
+    markNeedsAnnotate();
     markNeedsCompositingBitsUpdate();
     markNeedsPaint();
     markNeedsSemanticsUpdate();
@@ -1277,6 +1281,7 @@ abstract class RenderObject extends AbstractNode with DiagnosticableTreeMixin im
     assert(child != null);
     setupParentData(child);
     markNeedsLayout();
+    markNeedsAnnotate();
     markNeedsCompositingBitsUpdate();
     markNeedsSemanticsUpdate();
     super.adoptChild(child);
@@ -1296,6 +1301,7 @@ abstract class RenderObject extends AbstractNode with DiagnosticableTreeMixin im
     child.parentData = null;
     super.dropChild(child);
     markNeedsLayout();
+    markNeedsAnnotate();
     markNeedsCompositingBitsUpdate();
     markNeedsSemanticsUpdate();
   }
@@ -1408,6 +1414,10 @@ abstract class RenderObject extends AbstractNode with DiagnosticableTreeMixin im
       // scheduleInitialLayout() will handle it
       _needsLayout = false;
       markNeedsLayout();
+    }
+    if (_needsAnnotate) {
+      _needsAnnotate = false;
+      markNeedsAnnotate();
     }
     if (_needsCompositingBitsUpdate) {
       _needsCompositingBitsUpdate = false;
@@ -1630,6 +1640,7 @@ abstract class RenderObject extends AbstractNode with DiagnosticableTreeMixin im
     try {
       performLayout();
       markNeedsSemanticsUpdate();
+      markNeedsAnnotate();
     } catch (e, stack) {
       _debugReportException('performLayout', e, stack);
     }
@@ -1887,6 +1898,117 @@ abstract class RenderObject extends AbstractNode with DiagnosticableTreeMixin im
   // pixel, on the output device. Then, the layout() method or
   // equivalent will be called.
 
+  // ANNOTATION
+
+  bool get debugNeedsAnnotate {
+    bool result;
+    assert(() {
+      result = _needsAnnotate;
+      return true;
+    }());
+    return result;
+  }
+  // Only reset when the entire subtree is annotated.
+  bool _needsAnnotate = true;
+
+  /// Whether this pipeline is currently in the layout phase.
+  ///
+  /// Specifically, whether [flushAnnotation] is currently running.
+  ///
+  /// Only valid when asserts are enabled.
+  // bool get debugDoingAnnotate => _debugDoingAnnotate;
+  // bool _debugDoingAnnotate = false;
+
+  // Clear the cached subtree annotation type, and propagate to parent.
+  // Doesn't request a visual update.
+  void markNeedsAnnotate() {
+    // assert(owner == null || !owner.debugDoingAnnotate);
+    // print('* ${describeIdentity(this)} markNeedsAnnotate $_needsAnnotate');
+    if (_needsAnnotate) {
+      return;
+    }
+    _needsAnnotate = true;
+
+    assert(() {
+      if (debugPrintMarkNeedsLayoutStacks)
+        debugPrintStack(label: 'markNeedsLayout() called for $this');
+      return true;
+    }());
+
+    if (owner != null) {
+      if (parent is RenderObject) {
+        final RenderObject parent = this.parent as RenderObject;
+        parent.markNeedsAnnotate();
+      }
+    }
+  }
+
+  // Be null if empty.
+  HashSet<Type> _cachedSubtreeAnnotations;
+
+  static HashSet<Type> _mergeSets(HashSet<Type> a, HashSet<Type> b) {
+    if (a == null)
+      return b;
+    if (b == null)
+      return a;
+    return HashSet<Type>.from(a)..addAll(b);
+  }
+
+  // Override to compute if the subtree, including this node, may contain
+  // the annotation of the specified type.
+  //
+  // Used by parent.
+  //
+  // Be null if empty.
+  HashSet<Type> subtreeAnnotations() {
+    if (_needsAnnotate) {
+      final HashSet<Type> subtreeAnnotations = _mergeSets(selfAnnotations, childrenAnnotations());
+      _cachedSubtreeAnnotations = subtreeAnnotations;
+      _needsAnnotate = false;
+    }
+    assert(_cachedSubtreeAnnotations == null || _cachedSubtreeAnnotations.isNotEmpty);
+    return _cachedSubtreeAnnotations;
+  }
+
+  // Whether children might overlap.
+  //
+  // Setting to false enables better performance.
+  //
+  // Must not change throughout lifecycle.
+  // bool get childrenMayOverlap => false;
+
+  // Override to compute children.
+  //
+  // Don't cache self. Be null if empty.
+  @protected
+  HashSet<Type> childrenAnnotations() => null;
+
+  // Override to set selfAnnotations.
+  // If change, must call markNeedsAnnotate;
+  //
+  // Be null if empty.
+  @protected
+  // HashSet<Type> get selfAnnotations => HashSet<Type>.from(const <Type>{HitTestTarget});
+  HashSet<Type> get selfAnnotations => null;
+
+  // HIT TESTING
+
+  // RenderObject subclasses are expected to have a method like the following
+  // (with the signature being whatever passes for coordinates for this
+  // particular class):
+  //
+  // bool hitTest(HitTestResult result, { Offset position }) {
+  //   // If the given position is not inside this node, then return false.
+  //   // Otherwise:
+  //   // For each child that intersects the position, in z-order starting from
+  //   // the top, call hitTest() for that child, passing it /result/, and the
+  //   // coordinates converted to the child's coordinate origin, and stop at
+  //   // the first child that returns true.
+  //   // Then, add yourself to /result/, and return true.
+  // }
+  //
+  // If you add yourself to /result/ and still return false, then that means you
+  // will see events but so will objects below you.
 
   // PAINTING
 
@@ -2729,27 +2851,6 @@ abstract class RenderObject extends AbstractNode with DiagnosticableTreeMixin im
   @override
   void handleEvent(PointerEvent event, covariant HitTestEntry entry) { }
 
-
-  // HIT TESTING
-
-  // RenderObject subclasses are expected to have a method like the following
-  // (with the signature being whatever passes for coordinates for this
-  // particular class):
-  //
-  // bool hitTest(HitTestResult result, { Offset position }) {
-  //   // If the given position is not inside this node, then return false.
-  //   // Otherwise:
-  //   // For each child that intersects the position, in z-order starting from
-  //   // the top, call hitTest() for that child, passing it /result/, and the
-  //   // coordinates converted to the child's coordinate origin, and stop at
-  //   // the first child that returns true.
-  //   // Then, add yourself to /result/, and return true.
-  // }
-  //
-  // If you add yourself to /result/ and still return false, then that means you
-  // will see events but so will objects below you.
-
-
   /// Returns a human understandable name.
   @override
   String toStringShort() {
@@ -2896,6 +2997,14 @@ abstract class RenderObject extends AbstractNode with DiagnosticableTreeMixin im
   }
 }
 
+mixin SingleAnnotationRenderObject<T> on RenderObject {
+  @override
+  HashSet<Type> get selfAnnotations {
+    return _selfAnnotations ??= (HashSet<Type>()..add(T));
+  }
+  HashSet<Type> _selfAnnotations;
+}
+
 /// Generic mixin for render objects with one child.
 ///
 /// Provides a child model for a render object subclass that has
@@ -2981,6 +3090,20 @@ mixin RenderObjectWithChildMixin<ChildType extends RenderObject> on RenderObject
     if (_child != null)
       visitor(_child);
   }
+
+  // Override this method to report whether this render object is an
+  // auxiliary annotator.
+  //
+  // If true, then [annotateSelf] will be skipped and considered empty,
+  // and this object will always be included in the tree.
+  //
+  // Should not change throughout the lifecycle.
+  @protected
+  bool get isAuxiliaryAnnotator => false;
+
+  @protected
+  @override
+  HashSet<Type> childrenAnnotations() => child?.subtreeAnnotations();
 
   @override
   List<DiagnosticsNode> debugDescribeChildren() {
@@ -3288,6 +3411,22 @@ mixin ContainerRenderObjectMixin<ChildType extends RenderObject, ParentDataType 
     assert(child.parent == this);
     final ParentDataType childParentData = child.parentData as ParentDataType;
     return childParentData.nextSibling;
+  }
+
+  @protected
+  @override
+  HashSet<Type> childrenAnnotations() {
+    if (firstChild == null)
+      return null;
+    if (firstChild == lastChild)
+      return firstChild.subtreeAnnotations();
+    final HashSet<Type> result = HashSet<Type>();
+    visitChildren((RenderObject child) {
+      final HashSet<Type> childTypes = child.subtreeAnnotations();
+      if (childTypes != null)
+        result.addAll(childTypes);
+    });
+    return result.isEmpty ? null : result;
   }
 
   @override

@@ -546,7 +546,8 @@ class _SegmentedControlContainerBoxParentData extends ContainerBoxParentData<Ren
 //    has the same duration and timing function.
 class _RenderSegmentedControl<T> extends RenderBox
     with ContainerRenderObjectMixin<RenderBox, ContainerBoxParentData<RenderBox>>,
-        RenderBoxContainerDefaultsMixin<RenderBox, ContainerBoxParentData<RenderBox>> {
+        RenderBoxContainerDefaultsMixin<RenderBox, ContainerBoxParentData<RenderBox>>,
+        SingleAnnotationRenderObject<HitTestTarget> {
   _RenderSegmentedControl({
     @required int selectedIndex,
     @required Color thumbColor,

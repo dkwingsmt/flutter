@@ -5905,7 +5905,7 @@ class MouseRegion extends StatefulWidget {
   /// See also:
   ///
   ///  * [onExit], which is triggered when a mouse pointer exits the region.
-  ///  * [MouseTrackerAnnotation.onEnter], which is how this callback is
+  ///  * [MouseTrackerTarget.handleEnter], which is how this callback is
   ///    internally implemented.
   final PointerEnterEventListener onEnter;
 
@@ -6083,7 +6083,7 @@ class MouseRegion extends StatefulWidget {
   /// See also:
   ///
   ///  * [onEnter], which is triggered when a mouse pointer enters the region.
-  ///  * [RenderMouseRegion] and [MouseTrackerAnnotation.onExit], which are how
+  ///  * [RenderMouseRegion] and [MouseTrackerTarget.handleExit], which are how
   ///    this callback is internally implemented, but without the restriction.
   final PointerExitEventListener onExit;
 

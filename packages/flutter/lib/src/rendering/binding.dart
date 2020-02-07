@@ -439,9 +439,42 @@ mixin RendererBinding on BindingBase, ServicesBinding, SchedulerBinding, Gesture
   }
 }
 
+class _DebugAnnotationTreeNode<T> extends DiagnosticableTreeNode {
+  _DebugAnnotationTreeNode(RenderObject object) : super(value: object, style: null) {
+    _updateChildren();
+  }
+
+  @override
+  RenderObject get value => super.value as RenderObject;
+
+  bool get containsType => _children.isNotEmpty || (value.subtreeAnnotations()?.contains(T) ?? false);
+
+  @override
+  List<DiagnosticsNode> getChildren() => _children;
+  final List<_DebugAnnotationTreeNode<T>> _children = <_DebugAnnotationTreeNode<T>>[];
+
+  void _updateChildren() {
+    value.visitChildren((RenderObject child) {
+      final _DebugAnnotationTreeNode<T> childNode = _DebugAnnotationTreeNode<T>(child);
+      if (childNode.containsType) {
+        _children.add(childNode);
+      }
+    });
+  }
+}
+
 /// Prints a textual representation of the entire render tree.
 void debugDumpRenderTree() {
   debugPrint(RendererBinding.instance?.renderView?.toStringDeep() ?? 'Render tree unavailable.');
+}
+
+/// Prints a textual representation of the entire annotation tree for type `T`.
+void debugDumpAnnotationTree<T>() {
+  final RenderView view = RendererBinding.instance?.renderView;
+  if (view == null)
+    debugPrint('Annotation tree unavailable.');
+  final _DebugAnnotationTreeNode<T> tree = _DebugAnnotationTreeNode<T>(view);
+  debugPrint(tree.toStringDeep());
 }
 
 /// Prints a textual representation of the entire layer tree.

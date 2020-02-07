@@ -24,7 +24,8 @@ const Duration _kReactionFadeDuration = Duration(milliseconds: 50);
 /// This class handles storing the current value, dispatching ValueChanged on a
 /// tap gesture and driving a changed animation. Subclasses are responsible for
 /// painting.
-abstract class RenderToggleable extends RenderConstrainedBox {
+abstract class RenderToggleable extends RenderConstrainedBox
+  with SingleAnnotationRenderObject<HitTestTarget> {
   /// Creates a toggleable render object.
   ///
   /// The [activeColor], and [inactiveColor] arguments must not be

@@ -217,7 +217,7 @@ const double _kCupertinoSwitchDisabledOpacity = 0.5;
 const Duration _kReactionDuration = Duration(milliseconds: 300);
 const Duration _kToggleDuration = Duration(milliseconds: 200);
 
-class _RenderCupertinoSwitch extends RenderConstrainedBox {
+class _RenderCupertinoSwitch extends RenderConstrainedBox with SingleAnnotationRenderObject<HitTestTarget> {
   _RenderCupertinoSwitch({
     @required bool value,
     @required Color activeColor,

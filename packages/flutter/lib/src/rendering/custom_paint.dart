@@ -5,6 +5,7 @@
 import 'dart:collection';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart' show HitTestTarget;
 import 'package:flutter/semantics.dart';
 
 import 'package:vector_math/vector_math_64.dart';
@@ -267,6 +268,9 @@ abstract class CustomPainter extends Listenable {
   /// the default behavior.
   bool hitTest(Offset position) => null;
 
+  // Can't create a const HashSet
+  HashSet<Type> get selfAnnotations => HashSet<Type>()..add(HitTestTarget);
+
   @override
   String toString() => '${describeIdentity(this)}(${ _repaint?.toString() ?? "" })';
 }
@@ -512,6 +516,9 @@ class RenderCustomPaint extends RenderProxyBox {
   bool hitTestSelf(Offset position) {
     return _painter != null && (_painter.hitTest(position) ?? true);
   }
+
+  @override
+  HashSet<Type> get selfAnnotations => _painter == null ? null : _painter.selfAnnotations;
 
   @override
   void performResize() {

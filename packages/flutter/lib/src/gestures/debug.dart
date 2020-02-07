@@ -15,6 +15,8 @@ import 'package:flutter/foundation.dart';
 /// This has no effect in release builds.
 bool debugPrintHitTestResults = false;
 
+bool debugPrintHitTestDiagnostics = false;
+
 /// Whether to print the details of each mouse hover event to the console.
 ///
 /// When this is set, in debug mode, any time a mouse hover event is triggered

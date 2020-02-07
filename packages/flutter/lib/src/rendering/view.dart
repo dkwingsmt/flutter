@@ -7,7 +7,7 @@ import 'dart:io' show Platform;
 import 'dart:ui' as ui show Scene, SceneBuilder, Window;
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter/gestures.dart' show MouseTrackerAnnotation;
+import 'package:flutter/gestures.dart' show MouseTrackerTarget, HitTestTarget, debugPrintHitTestDiagnostics;
 import 'package:flutter/services.dart';
 import 'package:vector_math/vector_math_64.dart';
 
@@ -183,10 +183,35 @@ class RenderView extends RenderObject with RenderObjectWithChildMixin<RenderBox>
   /// coordinate system as that expected by the root [Layer], which will
   /// normally be in physical (device) pixels.
   bool hitTest(HitTestResult result, { Offset position }) {
+    assert(_debugHitTestDiagnostic(this, '★ Starting new hit test for type ${result.type}.'));
     if (child != null)
       child.hitTest(BoxHitTestResult.wrap(result), position: position);
-    result.add(HitTestEntry(this));
+    if (result.type == HitTestTarget) {
+      assert(_debugHitTestDiagnostic(this, 'Add entry'));
+      result.add(HitTestEntry(this));
+    }
+    assert(_debugHitTestDiagnostic(this,
+      '☆ Ending hit test with ${result.path.length} entries' +
+      result.path.map<String>((HitTestEntry e) => '\n  ${describeIdentity(e.target)}').join()));
     return true;
+  }
+
+  HitTestResult search<S>(Offset position) {
+    final HitTestResult result = HitTestResult(type: S, stopAtFirstResult: false);
+    // print('#Start type $S');
+    hitTest(result, position: position);
+    return result;
+  }
+
+  HitTestEntry searchFirst<S>(Offset position) {
+    final HitTestResult result = HitTestResult(type: S, stopAtFirstResult: true);
+    // print('#Start type $S');
+    hitTest(result, position: position);
+    final Iterator<HitTestEntry> it = result.path.iterator;
+    if (!it.moveNext()) {
+      return null;
+    }
+    return it.current;
   }
 
   /// Determines the set of mouse tracker annotations at the given position.
@@ -195,13 +220,13 @@ class RenderView extends RenderObject with RenderObjectWithChildMixin<RenderBox>
   ///
   ///  * [Layer.findAllAnnotations], which is used by this method to find all
   ///    [AnnotatedRegionLayer]s annotated for mouse tracking.
-  Iterable<MouseTrackerAnnotation> hitTestMouseTrackers(Offset position) {
+  Iterable<MouseTrackerTarget> hitTestMouseTrackers(Offset position) {
     // Layer hit testing is done using device pixels, so we have to convert
     // the logical coordinates of the event location back to device pixels
     // here.
-    return layer.findAllAnnotations<MouseTrackerAnnotation>(
-      position * configuration.devicePixelRatio
-    ).annotations;
+    return search<MouseTrackerTarget>(position).path.map(
+      (HitTestEntry entry) => entry.targetAs<MouseTrackerTarget>(),
+    );
   }
 
   @override
@@ -244,14 +269,14 @@ class RenderView extends RenderObject with RenderObjectWithChildMixin<RenderBox>
 
   void _updateSystemChrome() {
     final Rect bounds = paintBounds;
-    final Offset top = Offset(bounds.center.dx, _window.padding.top / _window.devicePixelRatio);
-    final Offset bottom = Offset(bounds.center.dx, bounds.center.dy - _window.padding.bottom / _window.devicePixelRatio);
-    final SystemUiOverlayStyle upperOverlayStyle = layer.find<SystemUiOverlayStyle>(top);
+    final Offset top = Offset(bounds.center.dx, _window.padding.top) / _window.devicePixelRatio;
+    final Offset bottom = Offset(bounds.center.dx, bounds.center.dy - _window.padding.bottom) / _window.devicePixelRatio;
+    final SystemUiOverlayStyle upperOverlayStyle = searchFirst<SystemUiOverlayStyle>(top)?.targetAs<SystemUiOverlayStyle>();
     // Only android has a customizable system navigation bar.
     SystemUiOverlayStyle lowerOverlayStyle;
     switch (defaultTargetPlatform) {
       case TargetPlatform.android:
-        lowerOverlayStyle = layer.find<SystemUiOverlayStyle>(bottom);
+        lowerOverlayStyle = searchFirst<SystemUiOverlayStyle>(bottom)?.targetAs<SystemUiOverlayStyle>();
         break;
       case TargetPlatform.fuchsia:
       case TargetPlatform.iOS:
@@ -298,4 +323,14 @@ class RenderView extends RenderObject with RenderObjectWithChildMixin<RenderBox>
     if (_window.semanticsEnabled)
       properties.add(DiagnosticsNode.message('semantics enabled'));
   }
+}
+
+bool _debugHitTestDiagnostic(RenderObject target, String message) {
+  assert(() {
+    if (debugPrintHitTestDiagnostics) {
+      debugPrint('HitTest ${describeIdentity(target)} ❙ $message');
+    }
+    return true;
+  }());
+  return true;
 }

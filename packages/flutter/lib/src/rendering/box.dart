@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import 'dart:collection' show HashSet;
 import 'dart:math' as math;
 import 'dart:ui' as ui show lerpDouble;
 
@@ -12,6 +13,8 @@ import 'package:vector_math/vector_math_64.dart';
 
 import 'debug.dart';
 import 'object.dart';
+
+export 'dart:collection' show HashSet;
 
 // This class should only be used in debug builds.
 class _DebugSize extends Size {
@@ -2103,6 +2106,7 @@ abstract class RenderBox extends RenderObject {
   /// object, which calls [hitTest] on its children when its opacity is zero
   /// even through it does not [paint] its children.
   bool hitTest(BoxHitTestResult result, { @required Offset position }) {
+    assert(_debugHitTestDiagnostic(this, 'Enter with position $position'));
     assert(() {
       if (!hasSize) {
         if (debugNeedsLayout) {
@@ -2138,13 +2142,30 @@ abstract class RenderBox extends RenderObject {
       }
       return true;
     }());
-    if (_size.contains(position)) {
-      if (hitTestChildren(result, position: position) || hitTestSelf(position)) {
-        result.add(BoxHitTestEntry(this, position));
-        return true;
-      }
+    // print('* ${describeIdentity(this)} hitTest<${result.type}> contains? ${_size.contains(position)} subtreeAnnos ${subtreeAnnotations()} hitSelf ${hitTestSelf(position)}');
+    if (!_size.contains(position)) {
+      assert(_debugHitTestDiagnostic(this,
+        'Bail out because size $_size does not contain position $position'));
+      return false;
     }
-    return false;
+    final bool hitSelf = hitTestSelf(position);
+    // print('pre-skip? ${hitSelf && !result.isTypedWithin(subtreeAnnotations())}');
+    // The subtree must not be skipped just because the subtree doesn't contain
+    // the type, since the returned boolean can also be affected by `hitTestChildren`.
+    if (hitSelf && !result.isTypedWithin(subtreeAnnotations())) {
+      assert(_debugHitTestDiagnostic(this,
+        'Bail out because hitSelf is true and type is not contained by subtree, which has ${subtreeAnnotations()}'));
+      return hitSelf;
+    }
+    final bool hitTarget = hitTestChildren(result, position: position) || hitSelf;
+    // print('$this ${result.type} $selfAnnotations');
+    if (hitTarget && result.isTypedWithin(selfAnnotations)) {
+      assert(_debugHitTestDiagnostic(this, 'Add entry'));
+      // print('* ${describeIdentity(this)} $selfAnnotations ${result.type}');
+      result.add(BoxHitTestEntry(this, position));
+    }
+    assert(_debugHitTestDiagnostic(this, 'Return with value $hitTarget'));
+    return hitTarget;
   }
 
   /// Override this method if this render object can be hit even if its
@@ -2497,6 +2518,8 @@ mixin RenderBoxContainerDefaultsMixin<ChildType extends RenderBox, ParentDataTyp
       );
       if (isHit)
         return true;
+      if (result.stopAtFirstResult && result.isNotEmpty)
+        return false;
       child = childParentData.previousSibling;
     }
     return false;
@@ -2532,4 +2555,14 @@ mixin RenderBoxContainerDefaultsMixin<ChildType extends RenderBox, ParentDataTyp
     }
     return result;
   }
+}
+
+bool _debugHitTestDiagnostic(RenderBox target, String message) {
+  assert(() {
+    if (debugPrintHitTestDiagnostics) {
+      debugPrint('HitTest ${describeIdentity(target)} ❙ $message');
+    }
+    return true;
+  }());
+  return true;
 }

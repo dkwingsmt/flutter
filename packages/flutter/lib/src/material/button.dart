@@ -524,10 +524,12 @@ class _RenderInputPadding extends RenderShiftedBox {
 
   @override
   bool hitTest(BoxHitTestResult result, { Offset position }) {
+    assert(_debugHitTestDiagnostic(this, 'Enter with $position'));
     if (super.hitTest(result, position: position)) {
       return true;
     }
     final Offset center = child.size.center(Offset.zero);
+    assert(_debugHitTestDiagnostic(this, 'Continue synthesized hitTest on $center.'));
     return result.addWithRawTransform(
       transform: MatrixUtils.forceToPoint(center),
       position: center,
@@ -537,4 +539,14 @@ class _RenderInputPadding extends RenderShiftedBox {
       },
     );
   }
+}
+
+bool _debugHitTestDiagnostic(RenderBox target, String message) {
+  assert(() {
+    if (debugPrintHitTestDiagnostics) {
+      debugPrint('HitTest ${describeIdentity(target)} ❙ $message');
+    }
+    return true;
+  }());
+  return true;
 }

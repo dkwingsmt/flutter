@@ -1105,6 +1105,20 @@ class RenderTable extends RenderBox {
     assert(_rowTops.length == rows + 1);
   }
 
+  @protected
+  @override
+  HashSet<Type> childrenAnnotations() {
+    assert(_children.length == rows * columns);
+    final HashSet<Type> result = HashSet<Type>();
+    for (int index = _children.length - 1; index >= 0; index -= 1) {
+      final RenderBox child = _children[index];
+      final HashSet<Type> childTypes = child.subtreeAnnotations();
+      if (childTypes != null)
+        result.addAll(childTypes);
+    }
+    return result.isEmpty ? null : result;
+  }
+
   @override
   bool hitTestChildren(BoxHitTestResult result, { Offset position }) {
     assert(_children.length == rows * columns);
