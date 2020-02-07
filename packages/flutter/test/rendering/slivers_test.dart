@@ -38,7 +38,7 @@ void main() {
     expect(
       root.toStringDeep(minLevel: DiagnosticLevel.info),
       equalsIgnoringHashCodes(
-        'RenderViewport#00000 NEEDS-LAYOUT NEEDS-PAINT\n'
+        'RenderViewport#00000 NEEDS-LAYOUT NEEDS-PAINT NEEDS-ANNOTATE\n'
         '   needs compositing\n'
         '   parentData: <none>\n'
         '   constraints: BoxConstraints(w=800.0, h=600.0)\n'
@@ -76,7 +76,7 @@ void main() {
     expect(
       root.toStringDeep(minLevel: DiagnosticLevel.info),
       equalsIgnoringHashCodes(
-        'RenderViewport#00000 NEEDS-PAINT NEEDS-COMPOSITING-BITS-UPDATE\n'
+        'RenderViewport#00000 NEEDS-PAINT NEEDS-COMPOSITING-BITS-UPDATE NEEDS-ANNOTATE\n'
         ' │ needs compositing\n'
         ' │ parentData: <none>\n'
         ' │ constraints: BoxConstraints(w=800.0, h=600.0)\n'
@@ -86,7 +86,7 @@ void main() {
         ' │ offset: _FixedViewportOffset#00000(offset: 0.0)\n'
         ' │ anchor: 0.0\n'
         ' │\n'
-        ' ├─center child: RenderSliverToBoxAdapter#00000 relayoutBoundary=up1 NEEDS-PAINT NEEDS-COMPOSITING-BITS-UPDATE\n'
+        ' ├─center child: RenderSliverToBoxAdapter#00000 relayoutBoundary=up1 NEEDS-PAINT NEEDS-COMPOSITING-BITS-UPDATE NEEDS-ANNOTATE\n'
         ' │ │ parentData: paintOffset=Offset(0.0, 0.0) (can use size)\n'
         ' │ │ constraints: SliverConstraints(AxisDirection.down,\n'
         ' │ │   GrowthDirection.forward, ScrollDirection.idle, scrollOffset:\n'
@@ -97,12 +97,12 @@ void main() {
         ' │ │ geometry: SliverGeometry(scrollExtent: 400.0, paintExtent: 400.0,\n'
         ' │ │   maxPaintExtent: 400.0, cacheExtent: 400.0)\n'
         ' │ │\n'
-        ' │ └─child: RenderSizedBox#00000 NEEDS-PAINT\n'
+        ' │ └─child: RenderSizedBox#00000 NEEDS-PAINT NEEDS-ANNOTATE\n'
         ' │     parentData: paintOffset=Offset(0.0, -0.0) (can use size)\n'
         ' │     constraints: BoxConstraints(w=800.0, 0.0<=h<=Infinity)\n'
         ' │     size: Size(800.0, 400.0)\n'
         ' │\n'
-        ' ├─child 1: RenderSliverToBoxAdapter#00000 relayoutBoundary=up1 NEEDS-PAINT NEEDS-COMPOSITING-BITS-UPDATE\n'
+        ' ├─child 1: RenderSliverToBoxAdapter#00000 relayoutBoundary=up1 NEEDS-PAINT NEEDS-COMPOSITING-BITS-UPDATE NEEDS-ANNOTATE\n'
         ' │ │ parentData: paintOffset=Offset(0.0, 400.0) (can use size)\n'
         ' │ │ constraints: SliverConstraints(AxisDirection.down,\n'
         ' │ │   GrowthDirection.forward, ScrollDirection.idle, scrollOffset:\n'
@@ -114,12 +114,12 @@ void main() {
         ' │ │   maxPaintExtent: 400.0, hasVisualOverflow: true, cacheExtent:\n'
         ' │ │   400.0)\n'
         ' │ │\n'
-        ' │ └─child: RenderSizedBox#00000 NEEDS-PAINT\n'
+        ' │ └─child: RenderSizedBox#00000 NEEDS-PAINT NEEDS-ANNOTATE\n'
         ' │     parentData: paintOffset=Offset(0.0, -0.0) (can use size)\n'
         ' │     constraints: BoxConstraints(w=800.0, 0.0<=h<=Infinity)\n'
         ' │     size: Size(800.0, 400.0)\n'
         ' │\n'
-        ' ├─child 2: RenderSliverToBoxAdapter#00000 relayoutBoundary=up1 NEEDS-PAINT NEEDS-COMPOSITING-BITS-UPDATE\n'
+        ' ├─child 2: RenderSliverToBoxAdapter#00000 relayoutBoundary=up1 NEEDS-PAINT NEEDS-COMPOSITING-BITS-UPDATE NEEDS-ANNOTATE\n'
         ' │ │ parentData: paintOffset=Offset(0.0, 800.0) (can use size)\n'
         ' │ │ constraints: SliverConstraints(AxisDirection.down,\n'
         ' │ │   GrowthDirection.forward, ScrollDirection.idle, scrollOffset:\n'
@@ -131,12 +131,12 @@ void main() {
         ' │ │   maxPaintExtent: 400.0, hasVisualOverflow: true, cacheExtent:\n'
         ' │ │   50.0)\n'
         ' │ │\n'
-        ' │ └─child: RenderSizedBox#00000 NEEDS-PAINT\n'
+        ' │ └─child: RenderSizedBox#00000 NEEDS-PAINT NEEDS-ANNOTATE\n'
         ' │     parentData: paintOffset=Offset(0.0, -0.0) (can use size)\n'
         ' │     constraints: BoxConstraints(w=800.0, 0.0<=h<=Infinity)\n'
         ' │     size: Size(800.0, 400.0)\n'
         ' │\n'
-        ' ├─child 3: RenderSliverToBoxAdapter#00000 relayoutBoundary=up1 NEEDS-PAINT NEEDS-COMPOSITING-BITS-UPDATE\n'
+        ' ├─child 3: RenderSliverToBoxAdapter#00000 relayoutBoundary=up1 NEEDS-PAINT NEEDS-COMPOSITING-BITS-UPDATE NEEDS-ANNOTATE\n'
         ' │ │ parentData: paintOffset=Offset(0.0, 1200.0) (can use size)\n'
         ' │ │ constraints: SliverConstraints(AxisDirection.down,\n'
         ' │ │   GrowthDirection.forward, ScrollDirection.idle, scrollOffset:\n'
@@ -147,12 +147,12 @@ void main() {
         ' │ │ geometry: SliverGeometry(scrollExtent: 400.0, hidden,\n'
         ' │ │   maxPaintExtent: 400.0, hasVisualOverflow: true)\n'
         ' │ │\n'
-        ' │ └─child: RenderSizedBox#00000 NEEDS-PAINT\n'
+        ' │ └─child: RenderSizedBox#00000 NEEDS-PAINT NEEDS-ANNOTATE\n'
         ' │     parentData: paintOffset=Offset(0.0, -0.0) (can use size)\n'
         ' │     constraints: BoxConstraints(w=800.0, 0.0<=h<=Infinity)\n'
         ' │     size: Size(800.0, 400.0)\n'
         ' │\n'
-        ' └─child 4: RenderSliverToBoxAdapter#00000 relayoutBoundary=up1 NEEDS-PAINT NEEDS-COMPOSITING-BITS-UPDATE\n'
+        ' └─child 4: RenderSliverToBoxAdapter#00000 relayoutBoundary=up1 NEEDS-PAINT NEEDS-COMPOSITING-BITS-UPDATE NEEDS-ANNOTATE\n'
         '   │ parentData: paintOffset=Offset(0.0, 1600.0) (can use size)\n'
         '   │ constraints: SliverConstraints(AxisDirection.down,\n'
         '   │   GrowthDirection.forward, ScrollDirection.idle, scrollOffset:\n'
@@ -163,7 +163,7 @@ void main() {
         '   │ geometry: SliverGeometry(scrollExtent: 400.0, hidden,\n'
         '   │   maxPaintExtent: 400.0, hasVisualOverflow: true)\n'
         '   │\n'
-        '   └─child: RenderSizedBox#00000 NEEDS-PAINT\n'
+        '   └─child: RenderSizedBox#00000 NEEDS-PAINT NEEDS-ANNOTATE\n'
         '       parentData: paintOffset=Offset(0.0, -0.0) (can use size)\n'
         '       constraints: BoxConstraints(w=800.0, 0.0<=h<=Infinity)\n'
         '       size: Size(800.0, 400.0)\n'
@@ -1000,11 +1000,14 @@ void main() {
   });
 }
 
-class _DummyHitTestTarget implements HitTestTarget {
+class _DummyHitTestTarget implements HitTestAnnotator {
   @override
   void handleEvent(PointerEvent event, HitTestEntry entry) {
     // Nothing to do.
   }
+
+  @override
+  S annotationFor<S>() => S == HitTestTarget ? this as S : null;
 }
 
 class MyHitTestResult extends HitTestResult {

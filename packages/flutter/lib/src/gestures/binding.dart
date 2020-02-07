@@ -58,7 +58,7 @@ import 'pointer_signal_resolver.dart';
 ///
 /// When a [PointerUpEvent] is received, the [GestureArenaManager.sweep] method
 /// is invoked to force the gesture arena logic to terminate if necessary.
-mixin GestureBinding on BindingBase implements HitTestable, HitTestDispatcher, HitTestTarget {
+mixin GestureBinding on BindingBase implements HitTestable, HitTestDispatcher, HitTestAnnotator {
   @override
   void initInstances() {
     super.initInstances();
@@ -162,6 +162,9 @@ mixin GestureBinding on BindingBase implements HitTestable, HitTestDispatcher, H
   void hitTest(HitTestResult result, Offset position) {
     result.add(HitTestEntry(this));
   }
+
+  @override
+  S annotationFor<S>() => S == HitTestTarget ? this as S : null;
 
   /// Dispatch an event to a hit test result's path.
   ///

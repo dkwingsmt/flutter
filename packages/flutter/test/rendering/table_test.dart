@@ -26,7 +26,7 @@ void main() {
     expect(
       table.toStringDeep(minLevel: DiagnosticLevel.info),
       equalsIgnoringHashCodes(
-        'RenderTable#00000 NEEDS-PAINT\n'
+        'RenderTable#00000 NEEDS-PAINT NEEDS-ANNOTATE\n'
         ' │ parentData: <none>\n'
         ' │ constraints: BoxConstraints(w=800.0, h=600.0)\n'
         ' │ size: Size(800.0, 600.0)\n'
@@ -91,7 +91,7 @@ void main() {
     expect(
       table.toStringDeep(minLevel: DiagnosticLevel.info),
       equalsIgnoringHashCodes(
-        'RenderTable#00000 relayoutBoundary=up1 NEEDS-PAINT NEEDS-COMPOSITING-BITS-UPDATE\n'
+        'RenderTable#00000 relayoutBoundary=up1 NEEDS-PAINT NEEDS-COMPOSITING-BITS-UPDATE NEEDS-ANNOTATE\n'
         ' │ parentData: offset=Offset(335.0, 185.0) (can use size)\n'
         ' │ constraints: BoxConstraints(0.0<=w<=800.0, 0.0<=h<=600.0)\n'
         ' │ size: Size(130.0, 230.0)\n'
@@ -100,21 +100,21 @@ void main() {
         ' │ column offsets: 0.0, 10.0, 30.0, 130.0, 130.0\n'
         ' │ row offsets: 0.0, 30.0, 30.0, 30.0, 30.0, 230.0\n'
         ' │\n'
-        ' ├─child (0, 0): RenderConstrainedBox#00000 relayoutBoundary=up2 NEEDS-PAINT\n'
+        ' ├─child (0, 0): RenderConstrainedBox#00000 relayoutBoundary=up2 NEEDS-PAINT NEEDS-ANNOTATE\n'
         ' │   parentData: offset=Offset(0.0, 0.0); default vertical alignment\n'
         ' │     (can use size)\n'
         ' │   constraints: BoxConstraints(w=10.0, 0.0<=h<=Infinity)\n'
         ' │   size: Size(10.0, 30.0)\n'
         ' │   additionalConstraints: BoxConstraints(w=10.0, h=30.0)\n'
         ' │\n'
-        ' ├─child (1, 0): RenderConstrainedBox#00000 relayoutBoundary=up2 NEEDS-PAINT\n'
+        ' ├─child (1, 0): RenderConstrainedBox#00000 relayoutBoundary=up2 NEEDS-PAINT NEEDS-ANNOTATE\n'
         ' │   parentData: offset=Offset(10.0, 0.0); default vertical alignment\n'
         ' │     (can use size)\n'
         ' │   constraints: BoxConstraints(w=20.0, 0.0<=h<=Infinity)\n'
         ' │   size: Size(20.0, 20.0)\n'
         ' │   additionalConstraints: BoxConstraints(w=20.0, h=20.0)\n'
         ' │\n'
-        ' ├─child (2, 0): RenderConstrainedBox#00000 relayoutBoundary=up2 NEEDS-PAINT\n'
+        ' ├─child (2, 0): RenderConstrainedBox#00000 relayoutBoundary=up2 NEEDS-PAINT NEEDS-ANNOTATE\n'
         ' │   parentData: offset=Offset(30.0, 0.0); default vertical alignment\n'
         ' │     (can use size)\n'
         ' │   constraints: BoxConstraints(w=100.0, 0.0<=h<=Infinity)\n'
@@ -140,7 +140,7 @@ void main() {
         ' ├─child (4, 3) is null\n'
         ' ├─child (0, 4) is null\n'
         ' ├─child (1, 4) is null\n'
-        ' ├─child (2, 4): RenderConstrainedBox#00000 relayoutBoundary=up2 NEEDS-PAINT\n'
+        ' ├─child (2, 4): RenderConstrainedBox#00000 relayoutBoundary=up2 NEEDS-PAINT NEEDS-ANNOTATE\n'
         ' │   parentData: offset=Offset(30.0, 30.0); default vertical alignment\n'
         ' │     (can use size)\n'
         ' │   constraints: BoxConstraints(w=100.0, 0.0<=h<=Infinity)\n'

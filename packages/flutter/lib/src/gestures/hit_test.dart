@@ -45,6 +45,15 @@ abstract class HitTestTarget {
   void handleEvent(PointerEvent event, HitTestEntry entry);
 }
 
+abstract class HitTestAnnotator implements HitTestTarget {
+  // This class is intended to be used as an interface, and should not be
+  // extended directly; this constructor prevents instantiation and extension.
+  // ignore: unused_element
+  factory HitTestAnnotator._() => null;
+
+  S annotationFor<S>();
+}
+
 /// Data collected during a hit test about a specific [HitTestTarget].
 ///
 /// Subclass this object to pass additional information from the hit test phase
@@ -54,7 +63,9 @@ class HitTestEntry {
   HitTestEntry(this.target);
 
   /// The [HitTestTarget] encountered during the hit test.
-  final HitTestTarget target;
+  final HitTestAnnotator target;
+
+  S annotationFor<S>() => target?.annotationFor<S>();
 
   @override
   String toString() => '${describeIdentity(this)}($target)';
@@ -74,7 +85,7 @@ class HitTestEntry {
 /// The result of performing a hit test.
 class HitTestResult {
   /// Creates an empty hit test result.
-  HitTestResult()
+  HitTestResult({this.type = HitTestTarget, this.stopAtFirstResult = false})
      : _path = <HitTestEntry>[],
        _transforms = Queue<Matrix4>();
 
@@ -86,7 +97,15 @@ class HitTestResult {
   /// structure to store [HitTestEntry]s).
   HitTestResult.wrap(HitTestResult result)
      : _path = result._path,
-       _transforms = result._transforms;
+       _transforms = result._transforms,
+       type = result.type,
+       stopAtFirstResult = result.stopAtFirstResult;
+
+  final Type type;
+  final bool stopAtFirstResult;
+
+  bool get isEmpty => _path.isEmpty;
+  bool get isNotEmpty => _path.isNotEmpty;
 
   /// An unmodifiable list of [HitTestEntry] objects recorded during the hit test.
   ///

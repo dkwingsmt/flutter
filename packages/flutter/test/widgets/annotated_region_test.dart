@@ -41,4 +41,20 @@ void main() {
     ));
     expect(result, 1);
   });
+  testWidgets('provides a value to the annotation tree in a particular region', (WidgetTester tester) async {
+    await tester.pumpWidget(
+      Transform.translate(
+        offset: const Offset(25.0, 25.0),
+        child: const AnnotatedRegion<int>(
+          child: SizedBox(width: 100.0, height: 100.0),
+          value: 1,
+        ),
+      ),
+    );
+    HitTestEntry result = RendererBinding.instance.renderView.searchFirst<int>(const Offset(10.0, 10.0));
+    expect(result, isNull);
+    result = RendererBinding.instance.renderView.searchFirst<int>(const Offset(50.0, 50.0));
+    expect(result, isNotNull);
+    expect(result.annotationFor<int>(), 1);
+  });
 }

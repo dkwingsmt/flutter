@@ -116,7 +116,9 @@ mixin RenderProxyBoxMixin<T extends RenderBox> on RenderBox, RenderObjectWithChi
 
   @override
   bool hitTestChildren(BoxHitTestResult result, { Offset position }) {
-    return child?.hitTest(result, position: position) ?? false;
+    if (child == null || !child.annotationTypes.contains(result.type))
+      return false;
+    return child.hitTest(result, position: position);
   }
 
   @override
@@ -164,7 +166,8 @@ abstract class RenderProxyBoxWithHitTestBehavior extends RenderProxyBox {
     bool hitTarget = false;
     if (size.contains(position)) {
       hitTarget = hitTestChildren(result, position: position) || hitTestSelf(position);
-      if (hitTarget || behavior == HitTestBehavior.translucent)
+      if ((hitTarget || behavior == HitTestBehavior.translucent)
+          && selfAnnotationTypes.contains(result.type))
         result.add(BoxHitTestEntry(this, position));
     }
     return hitTarget;
@@ -2802,6 +2805,7 @@ class RenderMouseRegion extends RenderProxyBox {
     if (annotationWasActive != value) {
       markNeedsPaint();
       markNeedsCompositingBitsUpdate();
+      markNeedsAnnotate();
     }
   }
 
@@ -2824,6 +2828,28 @@ class RenderMouseRegion extends RenderProxyBox {
   }
 
   bool _annotationIsActive;
+
+  @override
+  bool hitTest(BoxHitTestResult result, {Offset position}) {
+    if (!size.contains(position))
+      return false;
+    final bool hitChildren = hitTestChildren(result, position: position);
+    if (result.isNotEmpty && result.stopAtFirstResult)
+      return hitChildren;
+    final bool hitSelf = hitTestSelf(position) && selfAnnotationTypes.contains(result.type);
+    if (hitChildren || hitSelf)
+      result.add(BoxHitTestEntry(this, position));
+    return hitChildren || (hitSelf && opaque);
+  }
+
+  @override
+  bool hitTestSelf(Offset position) => true;
+
+  @override
+  Set<Type> get selfAnnotationTypes => _annotationIsActive ? const <Type>{MouseTrackerAnnotation} : const <Type>{};
+
+  @override
+  S annotationFor<S>() => S == MouseTrackerAnnotation ? _hoverAnnotation as S : null;
 
   @override
   bool get needsCompositing => super.needsCompositing || _annotationIsActive;
@@ -5068,6 +5094,20 @@ class RenderAnnotatedRegion<T> extends RenderProxyBox {
       return;
     _sized = value;
     markNeedsPaint();
+  }
+
+  @override
+  bool hitTestSelf(Offset position) => true;
+
+  @override
+  Set<Type> get selfAnnotationTypes => _selfAnnotationTypes;
+  final Set<Type> _selfAnnotationTypes = <Type>{T};
+
+  @override
+  S annotationFor<S>() {
+    if (S == T)
+      return _value as S;
+    return super.annotationFor();
   }
 
   @override

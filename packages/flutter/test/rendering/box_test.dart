@@ -99,13 +99,13 @@ void main() {
       equalsIgnoringHashCodes(
         'FlutterError\n'
         '   RenderPadding does not implement applyPaintTransform.\n'
-        '   The following RenderPadding object: RenderPadding#00000 NEEDS-PAINT NEEDS-COMPOSITING-BITS-UPDATE:\n'
+        '   The following RenderPadding object: RenderPadding#00000 NEEDS-PAINT NEEDS-COMPOSITING-BITS-UPDATE NEEDS-ANNOTATE:\n'
         '     parentData: <none>\n'
         '     constraints: BoxConstraints(w=800.0, h=600.0)\n'
         '     size: Size(800.0, 600.0)\n'
         '     padding: EdgeInsets.all(10.0)\n'
         '   ...did not use a BoxParentData class for the parentData field of the following child:\n'
-        '     RenderPadding#00000 NEEDS-PAINT:\n'
+        '     RenderPadding#00000 NEEDS-PAINT NEEDS-ANNOTATE:\n'
         '     parentData: <none> (can use size)\n'
         '     constraints: BoxConstraints(w=780.0, h=580.0)\n'
         '     size: Size(780.0, 580.0)\n'
@@ -181,7 +181,7 @@ void main() {
           '     parentData: MISSING\n'
           '     constraints: MISSING\n'
           '     size: MISSING\n'
-          '   ...was assigned a size obtained from: RenderDecoratedBox#00000 NEEDS-PAINT:\n'
+          '   ...was assigned a size obtained from: RenderDecoratedBox#00000 NEEDS-PAINT NEEDS-ANNOTATE:\n'
           '     parentData: <none>\n'
           '     constraints: BoxConstraints(w=800.0, h=600.0)\n'
           '     size: Size(800.0, 600.0)\n'
@@ -281,7 +281,7 @@ void main() {
     expect(
       coloredBox.toStringDeep(minLevel: DiagnosticLevel.info),
       equalsIgnoringHashCodes(
-        'RenderDecoratedBox#00000 NEEDS-PAINT\n'
+        'RenderDecoratedBox#00000 NEEDS-PAINT NEEDS-ANNOTATE\n'
         '   parentData: offset=Offset(10.0, 10.0) (can use size)\n'
         '   constraints: BoxConstraints(w=780.0, h=580.0)\n'
         '   size: Size(780.0, 580.0)\n'
@@ -976,7 +976,7 @@ void main() {
           equalsIgnoringHashCodes(
             'FlutterError\n'
             '   Cannot hit test a render box with no size.\n'
-            '   The hitTest() method was called on this RenderBox: FakeMissingSizeRenderBox#00000 NEEDS-PAINT:\n'
+            '   The hitTest() method was called on this RenderBox: FakeMissingSizeRenderBox#00000 NEEDS-PAINT NEEDS-ANNOTATE:\n'
             '     parentData: <none>\n'
             '     constraints: BoxConstraints(w=800.0, h=600.0)\n'
             '     size: Size(800.0, 600.0)\n'
@@ -1016,11 +1016,14 @@ void main() {
   });
 }
 
-class _DummyHitTestTarget implements HitTestTarget {
+class _DummyHitTestTarget implements HitTestAnnotator {
   @override
   void handleEvent(PointerEvent event, HitTestEntry entry) {
     // Nothing to do.
   }
+
+  @override
+  S annotationFor<S>() => S == HitTestTarget ? this as S : null;
 }
 
 class MyHitTestResult extends HitTestResult {

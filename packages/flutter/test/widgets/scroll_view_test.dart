@@ -4,7 +4,7 @@
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter/widgets.dart';
-import 'package:flutter/gestures.dart' show DragStartBehavior;
+import 'package:flutter/gestures.dart' show DragStartBehavior, PointerDeviceKind;
 import 'package:flutter/material.dart';
 
 import 'states.dart';
@@ -51,6 +51,55 @@ void main() {
     expect(log, equals(<String>['Massachusetts']));
     log.clear();
   });
+
+  testWidgets('ListView hover test', (WidgetTester tester) async {
+    final List<String> log = <String>[];
+
+    final TestGesture gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    await gesture.addPointer(location: const Offset(1000, 1000));
+    addTearDown(gesture.removePointer);
+
+    await tester.pumpWidget(
+      Directionality(
+        textDirection: TextDirection.ltr,
+        child: ListView(
+          dragStartBehavior: DragStartBehavior.down,
+          children: kStates.map<Widget>((String state) {
+            return MouseRegion(
+              onEnter: (_) {
+                log.add(state);
+              },
+              child: Container(
+                height: 200.0,
+                color: const Color(0xFF0000FF),
+                child: Text(state),
+              ),
+            );
+          }).toList(),
+        ),
+      ),
+    );
+
+    await gesture.moveTo(tester.getCenter(find.text('Alabama')));
+    expect(log, equals(<String>['Alabama']));
+    log.clear();
+
+    expect(find.text('Nevada'), findsNothing);
+
+    await tester.drag(find.text('Alabama'), const Offset(0.0, -4000.0));
+    await tester.pump();
+
+    expect(find.text('Alabama'), findsNothing);
+    expect(tester.getCenter(find.text('Massachusetts')), equals(const Offset(400.0, 100.0)));
+
+    await gesture.moveTo(const Offset(1000, 1000));
+    await tester.pump();
+    log.clear();
+    await gesture.moveTo(tester.getCenter(find.text('Massachusetts')));
+    expect(log, equals(<String>['Massachusetts']));
+    log.clear();
+  });
+
 
   testWidgets('ListView restart ballistic activity out of range', (WidgetTester tester) async {
     Widget buildListView(int n) {

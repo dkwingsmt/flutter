@@ -815,12 +815,27 @@ mixin _PlatformViewGestureMixin on RenderBox {
     if (hitTestBehavior == PlatformViewHitTestBehavior.transparent || !size.contains(position)) {
       return false;
     }
-    result.add(BoxHitTestEntry(this, position));
+    if (selfAnnotationTypes.contains(result.type))
+      result.add(BoxHitTestEntry(this, position));
     return hitTestBehavior == PlatformViewHitTestBehavior.opaque;
   }
 
   @override
   bool hitTestSelf(Offset position) => hitTestBehavior != PlatformViewHitTestBehavior.transparent;
+
+  @override
+  Set<Type> get selfAnnotationTypes => const <Type>{HitTestTarget, MouseTrackerAnnotation};
+
+  @override
+  S annotationFor<S>() {
+    switch(S) {
+      case MouseTrackerAnnotation:
+        return _hoverAnnotation as S;
+      case HitTestTarget:
+        return this as S;
+    }
+    return null;
+  }
 
   @override
   void handleEvent(PointerEvent event, HitTestEntry entry) {

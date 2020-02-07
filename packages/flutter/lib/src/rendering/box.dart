@@ -13,6 +13,8 @@ import 'package:vector_math/vector_math_64.dart';
 import 'debug.dart';
 import 'object.dart';
 
+export 'dart:collection' show HashSet;
+
 // This class should only be used in debug builds.
 class _DebugSize extends Size {
   _DebugSize(Size source, this._owner, this._canBeUsedByParent) : super.copy(source);
@@ -2140,7 +2142,8 @@ abstract class RenderBox extends RenderObject {
     }());
     if (_size.contains(position)) {
       if (hitTestChildren(result, position: position) || hitTestSelf(position)) {
-        result.add(BoxHitTestEntry(this, position));
+        if (selfAnnotationTypes.contains(result.type))
+          result.add(BoxHitTestEntry(this, position));
         return true;
       }
     }
@@ -2487,16 +2490,20 @@ mixin RenderBoxContainerDefaultsMixin<ChildType extends RenderBox, ParentDataTyp
     ChildType child = lastChild;
     while (child != null) {
       final ParentDataType childParentData = child.parentData as ParentDataType;
-      final bool isHit = result.addWithPaintOffset(
-        offset: childParentData.offset,
-        position: position,
-        hitTest: (BoxHitTestResult result, Offset transformed) {
-          assert(transformed == position - childParentData.offset);
-          return child.hitTest(result, position: transformed);
-        },
-      );
-      if (isHit)
-        return true;
+      if (child.annotationTypes.contains(result.type)) {
+        final bool isHit = result.addWithPaintOffset(
+          offset: childParentData.offset,
+          position: position,
+          hitTest: (BoxHitTestResult result, Offset transformed) {
+            assert(transformed == position - childParentData.offset);
+            return child.hitTest(result, position: transformed);
+          },
+        );
+        if (isHit)
+          return true;
+        if (result.stopAtFirstResult && result.isNotEmpty)
+          return false;
+      }
       child = childParentData.previousSibling;
     }
     return false;

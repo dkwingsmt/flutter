@@ -34,9 +34,12 @@ void main() {
   });
 }
 
-class _DummyHitTestTarget implements HitTestTarget {
+class _DummyHitTestTarget implements HitTestAnnotator {
   @override
   void handleEvent(PointerEvent event, HitTestEntry entry) {
     // Nothing to do.
   }
+
+  @override
+  S annotationFor<S>() => S == HitTestTarget ? this as S : null;
 }

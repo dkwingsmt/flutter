@@ -81,7 +81,7 @@ void main() {
         '   Tried to paint a RenderObject before its compositing bits were\n'
         '   updated.\n'
         '   The following RenderObject was marked as having dirty compositing bits at the time that it was painted:\n'
-        '     RenderRepaintBoundary#00000 NEEDS-PAINT NEEDS-COMPOSITING-BITS-UPDATE:\n'
+        '     RenderRepaintBoundary#00000 NEEDS-PAINT NEEDS-COMPOSITING-BITS-UPDATE NEEDS-ANNOTATE:\n'
         '     needs compositing\n'
         '     parentData: <none>\n'
         '     constraints: BoxConstraints(w=800.0, h=600.0)\n'

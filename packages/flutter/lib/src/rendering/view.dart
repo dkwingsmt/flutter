@@ -7,7 +7,7 @@ import 'dart:io' show Platform;
 import 'dart:ui' as ui show Scene, SceneBuilder, Window;
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter/gestures.dart' show MouseTrackerAnnotation;
+import 'package:flutter/gestures.dart' show MouseTrackerAnnotation, HitTestTarget;
 import 'package:flutter/services.dart';
 import 'package:vector_math/vector_math_64.dart';
 
@@ -183,10 +183,27 @@ class RenderView extends RenderObject with RenderObjectWithChildMixin<RenderBox>
   /// coordinate system as that expected by the root [Layer], which will
   /// normally be in physical (device) pixels.
   bool hitTest(HitTestResult result, { Offset position }) {
-    if (child != null)
+    if (child != null && child.annotationTypes.contains(result.type))
       child.hitTest(BoxHitTestResult.wrap(result), position: position);
-    result.add(HitTestEntry(this));
+    if (result.type == HitTestTarget)
+      result.add(HitTestEntry(this));
     return true;
+  }
+
+  HitTestResult search<S>(Offset position) {
+    final HitTestResult result = HitTestResult(type: S, stopAtFirstResult: false);
+    hitTest(result, position: position);
+    return result;
+  }
+
+  HitTestEntry searchFirst<S>(Offset position) {
+    final HitTestResult result = HitTestResult(type: S, stopAtFirstResult: true);
+    hitTest(result, position: position);
+    final Iterator<HitTestEntry> it = result.path.iterator;
+    if (!it.moveNext()) {
+      return null;
+    }
+    return it.current;
   }
 
   /// Determines the set of mouse tracker annotations at the given position.
@@ -199,9 +216,9 @@ class RenderView extends RenderObject with RenderObjectWithChildMixin<RenderBox>
     // Layer hit testing is done using device pixels, so we have to convert
     // the logical coordinates of the event location back to device pixels
     // here.
-    return layer.findAllAnnotations<MouseTrackerAnnotation>(
-      position * configuration.devicePixelRatio
-    ).annotations;
+    return search<MouseTrackerAnnotation>(position).path.map(
+      (HitTestEntry entry) => entry.annotationFor<MouseTrackerAnnotation>(),
+    );
   }
 
   @override
@@ -244,14 +261,14 @@ class RenderView extends RenderObject with RenderObjectWithChildMixin<RenderBox>
 
   void _updateSystemChrome() {
     final Rect bounds = paintBounds;
-    final Offset top = Offset(bounds.center.dx, _window.padding.top / _window.devicePixelRatio);
-    final Offset bottom = Offset(bounds.center.dx, bounds.center.dy - _window.padding.bottom / _window.devicePixelRatio);
-    final SystemUiOverlayStyle upperOverlayStyle = layer.find<SystemUiOverlayStyle>(top);
+    final Offset top = Offset(bounds.center.dx, _window.padding.top) / _window.devicePixelRatio;
+    final Offset bottom = Offset(bounds.center.dx, bounds.center.dy - _window.padding.bottom) / _window.devicePixelRatio;
+    final SystemUiOverlayStyle upperOverlayStyle = searchFirst<SystemUiOverlayStyle>(top)?.annotationFor<SystemUiOverlayStyle>();
     // Only android has a customizable system navigation bar.
     SystemUiOverlayStyle lowerOverlayStyle;
     switch (defaultTargetPlatform) {
       case TargetPlatform.android:
-        lowerOverlayStyle = layer.find<SystemUiOverlayStyle>(bottom);
+        lowerOverlayStyle = searchFirst<SystemUiOverlayStyle>(bottom)?.annotationFor<SystemUiOverlayStyle>();
         break;
       case TargetPlatform.fuchsia:
       case TargetPlatform.iOS:
