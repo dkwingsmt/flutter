@@ -2502,6 +2502,28 @@ mixin RenderBoxContainerDefaultsMixin<ChildType extends RenderBox, ParentDataTyp
     return false;
   }
 
+  bool defaultSearchChildrenAnnotations<S>(AnnotationResult<S> result, Offset localPosition) {
+    // the x, y parameters have the top left of the node's box as the origin
+    ChildType child = lastChild;
+    while (child != null) {
+      final ParentDataType childParentData = child.parentData as ParentDataType;
+      final bool absorbed = result.addWithPaintOffset(
+        offset: childParentData.offset,
+        position: localPosition,
+        annotationSearch: (AnnotationResult<S> result, Offset transformed) {
+          assert(transformed == localPosition - childParentData.offset);
+          return child.searchAnnotations<S>(result, transformed);
+        },
+      );
+      if (result.onlyFirst && result.isNotEmpty)
+        return absorbed;
+      if (absorbed)
+        return true;
+      child = childParentData.previousSibling;
+    }
+    return false;
+  }
+
   /// Paints each child by walking the child list forwards.
   ///
   /// See also:

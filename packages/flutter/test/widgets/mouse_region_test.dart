@@ -381,7 +381,6 @@ void main() {
       move2.clear();
       exit2.clear();
     }
-
     await tester.pumpWidget(Container());
     final TestGesture gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
     addTearDown(gesture.removePointer);
@@ -416,6 +415,8 @@ void main() {
     Offset center = tester.getCenter(find.byKey(key2));
     await gesture.moveTo(center);
     await tester.pump();
+
+
     expect(move2, isNotEmpty);
     expect(enter2, isNotEmpty);
     expect(exit2, isEmpty);
@@ -1304,6 +1305,7 @@ void main() {
 
     await gesture.moveTo(const Offset(5, 5));
     await tester.pump();
+
     await gesture.moveTo(const Offset(20, 20));
     await tester.pump();
     expect(bottomRegionIsHovered, isFalse);

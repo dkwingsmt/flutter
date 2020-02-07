@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import 'dart:collection' show HashSet;
 import 'dart:developer';
 import 'dart:ui' as ui show PictureRecorder;
 
@@ -19,6 +20,7 @@ import 'layer.dart';
 export 'package:flutter/foundation.dart' show FlutterError, InformationCollector, DiagnosticsNode, ErrorSummary, ErrorDescription, ErrorHint, DiagnosticsProperty, StringProperty, DoubleProperty, EnumProperty, FlagProperty, IntProperty, DiagnosticPropertiesBuilder;
 export 'package:flutter/gestures.dart' show HitTestEntry, HitTestResult;
 export 'package:flutter/painting.dart';
+export 'layer.dart' show AnnotationResult, AnnotationEntry;
 
 /// Base class for data associated with a [RenderObject] by its parent.
 ///
@@ -836,6 +838,7 @@ class PipelineOwner {
   /// Used to notify the pipeline owner that an associated render object wishes
   /// to update its visual appearance.
   void requestVisualUpdate() {
+    // print('* requestVisualUpdate');
     if (onNeedVisualUpdate != null)
       onNeedVisualUpdate();
   }
@@ -891,6 +894,53 @@ class PipelineOwner {
     } finally {
       assert(() {
         _debugDoingLayout = false;
+        return true;
+      }());
+      if (!kReleaseMode) {
+        Timeline.finishSync();
+      }
+    }
+  }
+
+  List<RenderObject> _nodesNeedingAnnotate = <RenderObject>[];
+
+  /// Whether this pipeline is currently in the layout phase.
+  ///
+  /// Specifically, whether [flushAnnotation] is currently running.
+  ///
+  /// Only valid when asserts are enabled.
+  bool get debugDoingAnnotate => _debugDoingAnnotate;
+  bool _debugDoingAnnotate = false;
+
+  /// Update the layout information for all dirty render objects.
+  ///
+  /// This function is one of the core stages of the rendering pipeline. Layout
+  /// information is cleaned prior to painting so that render objects will
+  /// appear on screen in their up-to-date locations.
+  ///
+  /// See [RendererBinding] for an example of how this function is used.
+  void flushAnnotation() {
+    if (!kReleaseMode) {
+      Timeline.startSync('Annotation', arguments: timelineWhitelistArguments);
+    }
+    assert(() {
+      _debugDoingAnnotate = true;
+      return true;
+    }());
+    try {
+      // TODO(dkwingsmt): assert that we're not allowing previously dirty nodes to redirty themselves
+      while (_nodesNeedingAnnotate.isNotEmpty) {
+        final List<RenderObject> dirtyNodes = _nodesNeedingAnnotate;
+        _nodesNeedingAnnotate = <RenderObject>[];
+        // Annotate from leaf to root.
+        for (final RenderObject node in dirtyNodes..sort((RenderObject a, RenderObject b) => b.depth - a.depth)) {
+          if (node._needsAnnotate && node.owner == this)
+            node._annotateSubtree();
+        }
+      }
+    } finally {
+      assert(() {
+        _debugDoingAnnotate = false;
         return true;
       }());
       if (!kReleaseMode) {
@@ -1230,6 +1280,7 @@ abstract class RenderObject extends AbstractNode with DiagnosticableTreeMixin im
   ///  * [BindingBase.reassembleApplication]
   void reassemble() {
     markNeedsLayout();
+    markNeedsAnnotate();
     markNeedsCompositingBitsUpdate();
     markNeedsPaint();
     markNeedsSemanticsUpdate();
@@ -1277,8 +1328,12 @@ abstract class RenderObject extends AbstractNode with DiagnosticableTreeMixin im
     assert(child != null);
     setupParentData(child);
     markNeedsLayout();
+    markNeedsAnnotate();
     markNeedsCompositingBitsUpdate();
     markNeedsSemanticsUpdate();
+    if (child._needsAnnotate)
+      _childrenNeedingAnnotateCount += 1;
+    // print('${describeIdentity(this)} adopts ${describeIdentity(child)} need? ${child._needsAnnotate} now $_childrenNeedingAnnotateCount');
     super.adoptChild(child);
   }
 
@@ -1294,8 +1349,12 @@ abstract class RenderObject extends AbstractNode with DiagnosticableTreeMixin im
     child._cleanRelayoutBoundary();
     child.parentData.detach();
     child.parentData = null;
+    if (child._needsAnnotate)
+      _childrenNeedingAnnotateCount -= 1;
+    // print('${describeIdentity(this)} drops ${describeIdentity(child)} need? ${child._needsAnnotate} now $_childrenNeedingAnnotateCount');
     super.dropChild(child);
     markNeedsLayout();
+    markNeedsAnnotate();
     markNeedsCompositingBitsUpdate();
     markNeedsSemanticsUpdate();
   }
@@ -1401,6 +1460,7 @@ abstract class RenderObject extends AbstractNode with DiagnosticableTreeMixin im
   @override
   void attach(PipelineOwner owner) {
     super.attach(owner);
+    // print('* ${describeIdentity(this)} attaches');
     // If the node was dirtied in some way while unattached, make sure to add
     // it to the appropriate dirty list now that an owner is available
     if (_needsLayout && _relayoutBoundary != null) {
@@ -1408,6 +1468,14 @@ abstract class RenderObject extends AbstractNode with DiagnosticableTreeMixin im
       // scheduleInitialLayout() will handle it
       _needsLayout = false;
       markNeedsLayout();
+    }
+    if (_needsAnnotate) {
+      _needsAnnotate = false;
+      if (parent is RenderObject) {
+        // print('parent count was ${(parent as RenderObject)._childrenNeedingAnnotateCount}');
+        (parent as RenderObject)._childrenNeedingAnnotateCount -= 1;
+      }
+      markNeedsAnnotate();
     }
     if (_needsCompositingBitsUpdate) {
       _needsCompositingBitsUpdate = false;
@@ -1425,6 +1493,12 @@ abstract class RenderObject extends AbstractNode with DiagnosticableTreeMixin im
       _needsSemanticsUpdate = false;
       markNeedsSemanticsUpdate();
     }
+  }
+
+  @override
+  void detach() {
+    super.detach();
+    // print('* ${describeIdentity(this)} detaches');
   }
 
   /// Whether this render object's layout information is dirty.
@@ -1627,6 +1701,7 @@ abstract class RenderObject extends AbstractNode with DiagnosticableTreeMixin im
     try {
       performLayout();
       markNeedsSemanticsUpdate();
+      markNeedsAnnotate();
     } catch (e, stack) {
       _debugReportException('performLayout', e, stack);
     }
@@ -1765,6 +1840,7 @@ abstract class RenderObject extends AbstractNode with DiagnosticableTreeMixin im
     }());
     try {
       performLayout();
+      markNeedsAnnotate();
       markNeedsSemanticsUpdate();
       assert(() {
         debugAssertDoesMeetConstraints();
@@ -1886,6 +1962,207 @@ abstract class RenderObject extends AbstractNode with DiagnosticableTreeMixin im
   // pixel, on the output device. Then, the layout() method or
   // equivalent will be called.
 
+  // ANNOTATION
+
+  bool get debugNeedsAnnotate {
+    bool result;
+    assert(() {
+      result = _needsAnnotate;
+      return true;
+    }());
+    return result;
+  }
+  bool _needsAnnotate = false; // New object's _needsAnnotate is set during layout.
+
+  /// Whether [performAnnotate] for this render object is currently running.
+  ///
+  /// Only valid when asserts are enabled. In release builds, always returns
+  /// false.
+  bool get debugDoingThisAnnotate => _debugDoingThisAnnotate;
+  bool _debugDoingThisAnnotate = false;
+
+  void markNeedsAnnotate() {
+    assert(owner == null || !owner.debugDoingAnnotate);
+    // print('* ${describeIdentity(this)} markNeedsAnnotate ($_needsAnnotate)');
+    if (_needsAnnotate) {
+      return;
+    }
+    _needsAnnotate = true;
+
+    assert(() {
+      if (debugPrintMarkNeedsLayoutStacks)
+        debugPrintStack(label: 'markNeedsLayout() called for $this');
+      return true;
+    }());
+    if (owner != null) {
+      owner._nodesNeedingAnnotate.add(this);
+    }
+
+    if (parent is RenderObject) {
+      final RenderObject parent = this.parent as RenderObject;
+      // print('* ${describeIdentity(this)} going to call parent');
+      parent.markUniqueChildNeedsAnnotate();
+    } else {
+      owner?.requestVisualUpdate();
+    }
+  }
+
+  int _childrenNeedingAnnotateCount = 0;
+  int _debugChildrenNeedingAnnotateCount() {
+    int childrenNeedingAnnotateCount = 0;
+    visitChildren((RenderObject child) {
+      if (child._needsAnnotate)
+        childrenNeedingAnnotateCount += 1;
+    });
+    return childrenNeedingAnnotateCount;
+  }
+
+  @protected
+  void markUniqueChildNeedsAnnotate() {
+    // print('* ${describeIdentity(this)} markUniqueChildNeedsAnnotate prevCount $_childrenNeedingAnnotateCount');
+    _childrenNeedingAnnotateCount += 1;
+    if (_childrenNeedingAnnotateCount == 1 && !_needsAnnotate) {
+      markNeedsAnnotate();
+      assert(_childrenNeedingAnnotateCount == 1);
+    } else {
+      if (owner != null) {
+        owner.requestVisualUpdate();
+      }
+    }
+  }
+
+  HashSet<Type> get annotationTypes => _annotationTypes;
+  HashSet<Type> _annotationTypes = HashSet<Type>();
+
+  // Override this method to report the types of annotations that this render
+  // object might provide.
+  //
+  // Implementation should add annotation types that this render object might
+  // produce to [annotationTypes].
+  //
+  // Do not include the types that the children might provide.
+  //
+  // If the result of this is changed, make sure to call [markNeedsAnnotate].
+  @protected
+  void performAnnotateSelf() { }
+
+  /// Compute the annotation types that this render object and its children
+  /// might provide.
+  ///
+  /// This method is the main entry point for parents to ask their children to
+  /// update their annotation information.
+  ///
+  /// Subclasses should not override [annotate] directly. Instead, they should
+  /// override [performAnnotate] and/or [reportAnnotationTypes]. The [annotate]
+  /// method delegates the actual work to these methods.
+  ///
+  /// The parent's [performAnnotate] method should call the [annotate] of all
+  /// its children from [childrenAnnotators] if desired. It is the [annotate]
+  /// method's responsibility (as implemented here) to return early if the child
+  /// does not need to do any work to update its layout information.
+  void annotateAncestors() {
+    // print('* ${describeIdentity(this)} annotateAncestors');
+    assert(_childrenNeedingAnnotateCount == 0,
+      'The ${describeIdentity(this)}\'s annotateAncestors() function is called '
+      'while there are $_childrenNeedingAnnotateCount children left un-annotated.',
+    );
+    final HashSet<Type> previousAnnotationTypes = _annotationTypes;
+    _annotationTypes = HashSet<Type>();
+    visitChildren((RenderObject child) {
+      _annotationTypes.addAll(child._annotationTypes);
+    });
+    performAnnotateSelf();
+    // print('* ${describeIdentity(this)} no longer _needsAnnotate');
+    _needsAnnotate = false;
+    assert(_childrenNeedingAnnotateCount == 0);
+    if (_annotationTypes == previousAnnotationTypes) {
+      return;
+    }
+    if (parent != null) {
+      final RenderObject parent = this.parent as RenderObject;
+      // print('alerting parent ${describeIdentity(parent)}');
+      parent.markUniqueChildAnnotated();
+    }
+    assert(!_needsAnnotate);
+    assert(_childrenNeedingAnnotateCount == 0);
+  }
+
+  @protected
+  void markUniqueChildAnnotated() {
+    // print('* ${describeIdentity(this)} markUniqueChildAnnotated prevCount $_childrenNeedingAnnotateCount');
+    _childrenNeedingAnnotateCount -= 1;
+    assert(() {
+      final int calculatedCount = _debugChildrenNeedingAnnotateCount();
+      assert(calculatedCount == _childrenNeedingAnnotateCount,
+        'The ${describeIdentity(this)} records $_childrenNeedingAnnotateCount '
+        'children needing annotate, while there are actually $calculatedCount.'
+      );
+      return true;
+    }());
+    if (_childrenNeedingAnnotateCount == 0)
+      annotateAncestors();
+  }
+
+  // Override this method to report whether this render object provides an
+  // auxiliary annotator.
+  //
+  // If true, then [reportAnnotatorTypes] will be skipped and considered empty,
+  // and this object will always be included in the tree.
+  //
+  // Should not change throughout the lifecycle.
+  // @protected
+  // bool get isAuxiliaryAnnotator => false;
+
+  // Return the chidren render objects owned by this object that respond to
+  // an annotation search of type `S`.
+  // @protected
+  // Iterable<RenderObject> childrenAnnotators<S>() {
+  //   return const Iterable<RenderObject>.empty();
+  // }
+
+  // Override this method to define whether and what annotations to add into
+  // the result during an annotation search.
+  //
+  // Returns true if the search results in being opaque.
+  //
+  // In implementing this function, you must call [annotate] on each of your
+  // children annotators returned by [childrenAnnotators].
+  // @protected
+  // bool performAnnotate<S>(AnnotationResult<S> result, Offset localPosition, { bool onlyFirst }) {
+  //   return false;
+  // }
+
+  void _annotateSubtree() {
+    // print('* _annotateSubtree $this');
+    try {
+      annotateAncestors();
+    } catch (e, stack) {
+      _debugReportException('performAnnotate', e, stack);
+    }
+  }
+
+  @protected
+  bool searchChildrenAnnotations<S>(AnnotationResult<S> result, Offset localPosition) {
+    return false;
+  }
+
+  @protected
+  bool searchSelfAnnotations<S>(AnnotationResult<S> result, Offset localPosition) {
+    return false;
+  }
+
+  bool searchAnnotations<S>(AnnotationResult<S> result, Offset localPosition) {
+    if (!_annotationTypes.contains(S))
+      return false;
+    assert(!result.onlyFirst || result.isEmpty);
+    final bool absorbedByChildren = searchChildrenAnnotations<S>(result, localPosition);
+    assert(absorbedByChildren != null);
+    if (result.isNotEmpty && result.onlyFirst)
+      return absorbedByChildren;
+    final bool absorbedBySelf = searchSelfAnnotations<S>(result, localPosition);
+    assert(absorbedBySelf != null);
+    return absorbedByChildren || absorbedBySelf;
+  }
 
   // PAINTING
 
@@ -2768,6 +3045,8 @@ abstract class RenderObject extends AbstractNode with DiagnosticableTreeMixin im
       header += ' NEEDS-PAINT';
     if (_needsCompositingBitsUpdate)
       header += ' NEEDS-COMPOSITING-BITS-UPDATE';
+    if (_needsAnnotate)
+      header += ' NEEDS-ANNOTATE';
     if (!attached)
       header += ' DETACHED';
     return header;
@@ -2979,6 +3258,11 @@ mixin RenderObjectWithChildMixin<ChildType extends RenderObject> on RenderObject
   void visitChildren(RenderObjectVisitor visitor) {
     if (_child != null)
       visitor(_child);
+  }
+
+  @override
+  bool searchChildrenAnnotations<S>(AnnotationResult<S> result, Offset localPosition) {
+    return child?.searchAnnotations<S>(result, localPosition) ?? false;
   }
 
   @override
@@ -3287,6 +3571,22 @@ mixin ContainerRenderObjectMixin<ChildType extends RenderObject, ParentDataType 
     assert(child.parent == this);
     final ParentDataType childParentData = child.parentData as ParentDataType;
     return childParentData.nextSibling;
+  }
+
+  @override
+  bool searchChildrenAnnotations<S>(AnnotationResult<S> result, Offset localPosition) {
+    ChildType child = _lastChild;
+    while (child != null) {
+      final bool absorbed = child.searchAnnotations<S>(result, localPosition);
+      assert(absorbed != null);
+      if (absorbed)
+        return true;
+      if (result.onlyFirst && result.isNotEmpty)
+        return absorbed;
+      final ParentDataType childParentData = child.parentData as ParentDataType;
+      child = childParentData.previousSibling;
+    }
+    return false;
   }
 
   @override

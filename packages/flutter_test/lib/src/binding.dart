@@ -59,6 +59,10 @@ enum EnginePhase {
   /// The final phase in the rendering library, wherein semantics information is
   /// sent to the embedder. See [SemanticsOwner.sendSemanticsUpdate].
   sendSemanticsUpdate,
+
+  /// The annotation building phase in the rendering library. See
+  /// [PipelineOwner.flushAnnotation].
+  annotate,
 }
 
 /// Parts of the system that can generate pointer events that reach the test
@@ -1011,16 +1015,19 @@ class AutomatedTestWidgetsFlutterBinding extends TestWidgetsFlutterBinding {
         assert(renderView != null);
         pipelineOwner.flushLayout();
         if (_phase != EnginePhase.layout) {
-          pipelineOwner.flushCompositingBits();
-          if (_phase != EnginePhase.compositingBits) {
-            pipelineOwner.flushPaint();
-            if (_phase != EnginePhase.paint && sendFramesToEngine) {
-              _firstFrameSent = true;
-              renderView.compositeFrame(); // this sends the bits to the GPU
-              if (_phase != EnginePhase.composite) {
-                pipelineOwner.flushSemantics();
-                assert(_phase == EnginePhase.flushSemantics ||
-                       _phase == EnginePhase.sendSemanticsUpdate);
+          pipelineOwner.flushAnnotation();
+          if (_phase != EnginePhase.annotate) {
+            pipelineOwner.flushCompositingBits();
+            if (_phase != EnginePhase.compositingBits) {
+              pipelineOwner.flushPaint();
+              if (_phase != EnginePhase.paint && sendFramesToEngine) {
+                _firstFrameSent = true;
+                renderView.compositeFrame(); // this sends the bits to the GPU
+                if (_phase != EnginePhase.composite) {
+                  pipelineOwner.flushSemantics();
+                  assert(_phase == EnginePhase.flushSemantics ||
+                        _phase == EnginePhase.sendSemanticsUpdate);
+                }
               }
             }
           }

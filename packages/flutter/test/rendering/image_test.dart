@@ -86,7 +86,7 @@ void main() {
     expect(
       image.toStringDeep(minLevel: DiagnosticLevel.info),
       equalsIgnoringHashCodes(
-        'RenderImage#00000 relayoutBoundary=up2 NEEDS-PAINT\n'
+        'RenderImage#00000 relayoutBoundary=up2 NEEDS-PAINT NEEDS-ANNOTATE\n'
         '   parentData: <none> (can use size)\n'
         '   constraints: BoxConstraints(25.0<=w<=100.0, 25.0<=h<=100.0)\n'
         '   size: Size(25.0, 25.0)\n'

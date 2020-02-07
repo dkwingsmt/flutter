@@ -1324,6 +1324,17 @@ class RenderClipRect extends _RenderCustomClip<Rect> {
   }
 
   @override
+  bool searchAnnotations<S>(AnnotationResult<S> result, Offset localPosition) {
+    if (_clipper != null) {
+      _updateClip();
+      assert(_clip != null);
+      if (!_clip.contains(localPosition))
+        return false;
+    }
+    return super.searchAnnotations(result, localPosition);
+  }
+
+  @override
   void paint(PaintingContext context, Offset offset) {
     if (child != null) {
       _updateClip();
@@ -1410,6 +1421,17 @@ class RenderClipRRect extends _RenderCustomClip<RRect> {
   }
 
   @override
+  bool searchAnnotations<S>(AnnotationResult<S> result, Offset localPosition) {
+    if (_clipper != null) {
+      _updateClip();
+      assert(_clip != null);
+      if (!_clip.contains(localPosition))
+        return false;
+    }
+    return super.searchAnnotations(result, localPosition);
+  }
+
+  @override
   void paint(PaintingContext context, Offset offset) {
     if (child != null) {
       _updateClip();
@@ -1487,6 +1509,20 @@ class RenderClipOval extends _RenderCustomClip<Rect> {
   }
 
   @override
+  bool searchAnnotations<S>(AnnotationResult<S> result, Offset localPosition) {
+    _updateClip();
+    assert(_clip != null);
+    final Offset center = _clip.center;
+    // convert the position to an offset from the center of the unit circle
+    final Offset offset = Offset((localPosition.dx - center.dx) / _clip.width,
+                                     (localPosition.dy - center.dy) / _clip.height);
+    // check if the point is outside the unit circle
+    if (offset.distanceSquared > 0.25) // x^2 + y^2 > r^2
+      return false;
+    return super.searchAnnotations(result, localPosition);
+  }
+
+  @override
   void paint(PaintingContext context, Offset offset) {
     if (child != null) {
       _updateClip();
@@ -1557,6 +1593,17 @@ class RenderClipPath extends _RenderCustomClip<Path> {
         return false;
     }
     return super.hitTest(result, position: position);
+  }
+
+  @override
+  bool searchAnnotations<S>(AnnotationResult<S> result, Offset localPosition) {
+    if (_clipper != null) {
+      _updateClip();
+      assert(_clip != null);
+      if (!_clip.contains(localPosition))
+        return false;
+    }
+    return super.searchAnnotations(result, localPosition);
   }
 
   @override
@@ -1767,6 +1814,17 @@ class RenderPhysicalModel extends _RenderPhysicalModelBase<RRect> {
   }
 
   @override
+  bool searchAnnotations<S>(AnnotationResult<S> result, Offset localPosition) {
+    if (_clipper != null) {
+      _updateClip();
+      assert(_clip != null);
+      if (!_clip.contains(localPosition))
+        return false;
+    }
+    return super.searchAnnotations(result, localPosition);
+  }
+
+  @override
   void paint(PaintingContext context, Offset offset) {
     if (child != null) {
       _updateClip();
@@ -1864,6 +1922,17 @@ class RenderPhysicalShape extends _RenderPhysicalModelBase<Path> {
         return false;
     }
     return super.hitTest(result, position: position);
+  }
+
+  @override
+  bool searchAnnotations<S>(AnnotationResult<S> result, Offset localPosition) {
+    if (_clipper != null) {
+      _updateClip();
+      assert(_clip != null);
+      if (!_clip.contains(localPosition))
+        return false;
+    }
+    return super.searchAnnotations(result, localPosition);
   }
 
   @override
@@ -2222,6 +2291,19 @@ class RenderTransform extends RenderProxyBox {
       position: position,
       hitTest: (BoxHitTestResult result, Offset position) {
         return super.hitTestChildren(result, position: position);
+      },
+    );
+  }
+
+  @override
+  bool searchAnnotations<S>(AnnotationResult<S> result, Offset localPosition) {
+    assert(!transformHitTests || _effectiveTransform != null);
+    return result.addWithPaintTransform(
+      transform: transformHitTests ? _effectiveTransform : null,
+      position: localPosition,
+      annotationSearch: (AnnotationResult<S> result, Offset transformed) {
+        // print('* RenderTransform from $localPosition to $transformed');
+        return super.searchAnnotations<S>(result, transformed);
       },
     );
   }
@@ -2802,6 +2884,7 @@ class RenderMouseRegion extends RenderProxyBox {
     if (annotationWasActive != value) {
       markNeedsPaint();
       markNeedsCompositingBitsUpdate();
+      markNeedsAnnotate();
     }
   }
 
@@ -2824,6 +2907,22 @@ class RenderMouseRegion extends RenderProxyBox {
   }
 
   bool _annotationIsActive;
+
+  @override
+  void performAnnotateSelf() {
+    if (_annotationIsActive)
+      annotationTypes.add(MouseTrackerAnnotation);
+  }
+
+  @override
+  bool searchSelfAnnotations<S>(AnnotationResult<S> result, Offset localPosition) {
+    // print('* ${describeIdentity(this)} type $S localPosition $localPosition @size $size');
+    if (S != MouseTrackerAnnotation || !size.contains(localPosition))
+      return false;
+    final S typedValue = _hoverAnnotation as S;
+    result.add(AnnotationEntry<S>(annotation: typedValue, localPosition: localPosition));
+    return opaque;
+  }
 
   @override
   bool get needsCompositing => super.needsCompositing || _annotationIsActive;
@@ -3120,6 +3219,13 @@ class RenderIgnorePointer extends RenderProxyBox {
     return !ignoring && super.hitTest(result, position: position);
   }
 
+  @override
+  bool searchAnnotations<S>(AnnotationResult<S> result, Offset localPosition) {
+    if (ignoring && size.contains(localPosition))
+      return false;
+    return super.searchAnnotations(result, localPosition);
+  }
+
   // TODO(ianh): figure out a way to still include labels and flags in
   // descendants, just make them non-interactive, even when
   // _effectiveIgnoringSemantics is true
@@ -3231,6 +3337,13 @@ class RenderOffstage extends RenderProxyBox {
   }
 
   @override
+  bool searchAnnotations<S>(AnnotationResult<S> result, Offset localPosition) {
+    if (offstage)
+      return false;
+    return super.searchAnnotations(result, localPosition);
+  }
+
+  @override
   void paint(PaintingContext context, Offset offset) {
     if (offstage)
       return;
@@ -3326,6 +3439,13 @@ class RenderAbsorbPointer extends RenderProxyBox {
     return absorbing
         ? size.contains(position)
         : super.hitTest(result, position: position);
+  }
+
+  @override
+  bool searchAnnotations<S>(AnnotationResult<S> result, Offset localPosition) {
+    if (absorbing && size.contains(localPosition))
+      return false;
+    return super.searchAnnotations(result, localPosition);
   }
 
   @override
@@ -5068,6 +5188,20 @@ class RenderAnnotatedRegion<T> extends RenderProxyBox {
       return;
     _sized = value;
     markNeedsPaint();
+  }
+
+  @override
+  void performAnnotateSelf() {
+    annotationTypes.add(T);
+  }
+
+  @override
+  bool searchSelfAnnotations<S>(AnnotationResult<S> result, Offset localPosition) {
+    if (S != T || !size.contains(localPosition))
+      return false;
+    final S typedValue = _value as S;
+    result.add(AnnotationEntry<S>(annotation: typedValue, localPosition: localPosition));
+    return false;
   }
 
   @override

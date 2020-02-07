@@ -387,6 +387,7 @@ class MouseTracker extends ChangeNotifier {
     @required PointerEvent previousEvent,
     @required PointerEvent unhandledEvent,
   }) {
+    // print('* MouseTracker last $lastAnnotations this $nextAnnotations');
     assert(lastAnnotations != null);
     assert(nextAnnotations != null);
     final PointerEvent latestEvent = unhandledEvent ?? previousEvent;

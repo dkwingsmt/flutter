@@ -729,6 +729,30 @@ class _RenderTheatre extends RenderBox with ContainerRenderObjectMixin<RenderBox
     return false;
   }
 
+  @override
+  bool searchChildrenAnnotations<S>(AnnotationResult<S> result, Offset localPosition) {
+    RenderBox child = _lastOnstageChild;
+    for (int i = 0; i < _onstageChildCount; i++) {
+      assert(child != null);
+      final StackParentData childParentData = child.parentData as StackParentData;
+      final bool absorbed = result.addWithPaintOffset(
+        offset: childParentData.offset,
+        position: localPosition,
+        annotationSearch: (AnnotationResult<S> result, Offset transformed) {
+          assert(transformed == localPosition - childParentData.offset);
+          return child.searchAnnotations(result, transformed);
+        },
+      );
+      assert(absorbed != null);
+      if (absorbed)
+        return true;
+      if (result.onlyFirst && result.isNotEmpty)
+        return absorbed;
+      child = childParentData.previousSibling;
+    }
+    return false;
+  }
+
   @protected
   void paintStack(PaintingContext context, Offset offset) {
     RenderBox child = _firstOnstageChild;

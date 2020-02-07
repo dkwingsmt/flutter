@@ -823,6 +823,26 @@ mixin _PlatformViewGestureMixin on RenderBox {
   bool hitTestSelf(Offset position) => hitTestBehavior != PlatformViewHitTestBehavior.transparent;
 
   @override
+  void performAnnotateSelf() {
+    annotationTypes.add(MouseTrackerAnnotation);
+  }
+
+  @override
+  bool searchAnnotations<S>(AnnotationResult<S> result, Offset localPosition) {
+    if (S != MouseTrackerAnnotation)
+      return false;
+    if (hitTestBehavior == PlatformViewHitTestBehavior.transparent || !size.contains(localPosition)) {
+      return false;
+    }
+    assert(_hoverAnnotation != null);
+    result.add(AnnotationEntry<S>(
+      annotation: _hoverAnnotation as S,
+      localPosition: localPosition,
+    ));
+    return hitTestBehavior == PlatformViewHitTestBehavior.opaque;
+  }
+
+  @override
   void handleEvent(PointerEvent event, HitTestEntry entry) {
     if (event is PointerDownEvent) {
       _gestureRecognizer.addPointer(event);

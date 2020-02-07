@@ -32,7 +32,7 @@ void main() {
     expect(
       parent.toStringDeep(minLevel: DiagnosticLevel.info),
       equalsIgnoringHashCodes(
-        'RenderConstrainedOverflowBox#00000 NEEDS-PAINT NEEDS-COMPOSITING-BITS-UPDATE\n'
+        'RenderConstrainedOverflowBox#00000 NEEDS-PAINT NEEDS-COMPOSITING-BITS-UPDATE NEEDS-ANNOTATE\n'
         ' │ parentData: <none>\n'
         ' │ constraints: BoxConstraints(w=800.0, h=600.0)\n'
         ' │ size: Size(800.0, 600.0)\n'
@@ -42,14 +42,14 @@ void main() {
         ' │ minHeight: 0.0\n'
         ' │ maxHeight: Infinity\n'
         ' │\n'
-        ' └─child: RenderLimitedBox#00000 relayoutBoundary=up1 NEEDS-PAINT NEEDS-COMPOSITING-BITS-UPDATE\n'
+        ' └─child: RenderLimitedBox#00000 relayoutBoundary=up1 NEEDS-PAINT NEEDS-COMPOSITING-BITS-UPDATE NEEDS-ANNOTATE\n'
         '   │ parentData: offset=Offset(350.0, 200.0) (can use size)\n'
         '   │ constraints: BoxConstraints(unconstrained)\n'
         '   │ size: Size(100.0, 200.0)\n'
         '   │ maxWidth: 100.0\n'
         '   │ maxHeight: 200.0\n'
         '   │\n'
-        '   └─child: RenderConstrainedBox#00000 relayoutBoundary=up2 NEEDS-PAINT\n'
+        '   └─child: RenderConstrainedBox#00000 relayoutBoundary=up2 NEEDS-PAINT NEEDS-ANNOTATE\n'
         '       parentData: <none> (can use size)\n'
         '       constraints: BoxConstraints(0.0<=w<=100.0, 0.0<=h<=200.0)\n'
         '       size: Size(100.0, 200.0)\n'
@@ -118,7 +118,7 @@ void main() {
     expect(
       parent.toStringDeep(minLevel: DiagnosticLevel.info),
       equalsIgnoringHashCodes(
-        'RenderConstrainedOverflowBox#00000 NEEDS-PAINT NEEDS-COMPOSITING-BITS-UPDATE\n'
+        'RenderConstrainedOverflowBox#00000 NEEDS-PAINT NEEDS-COMPOSITING-BITS-UPDATE NEEDS-ANNOTATE\n'
         ' │ parentData: <none>\n'
         ' │ constraints: BoxConstraints(w=800.0, h=600.0)\n'
         ' │ size: Size(800.0, 600.0)\n'
@@ -128,7 +128,7 @@ void main() {
         ' │ minHeight: 0.0\n'
         ' │ maxHeight: Infinity\n'
         ' │\n'
-        ' └─child: RenderLimitedBox#00000 relayoutBoundary=up1 NEEDS-PAINT\n'
+        ' └─child: RenderLimitedBox#00000 relayoutBoundary=up1 NEEDS-PAINT NEEDS-ANNOTATE\n'
         '     parentData: offset=Offset(395.0, 300.0) (can use size)\n'
         '     constraints: BoxConstraints(10.0<=w<=500.0, 0.0<=h<=Infinity)\n'
         '     size: Size(10.0, 0.0)\n'
@@ -154,7 +154,7 @@ void main() {
     expect(
       parent.toStringDeep(minLevel: DiagnosticLevel.info),
       equalsIgnoringHashCodes(
-        'RenderConstrainedOverflowBox#00000 NEEDS-PAINT NEEDS-COMPOSITING-BITS-UPDATE\n'
+        'RenderConstrainedOverflowBox#00000 NEEDS-PAINT NEEDS-COMPOSITING-BITS-UPDATE NEEDS-ANNOTATE\n'
         ' │ parentData: <none>\n'
         ' │ constraints: BoxConstraints(w=800.0, h=600.0)\n'
         ' │ size: Size(800.0, 600.0)\n'
@@ -164,7 +164,7 @@ void main() {
         ' │ minHeight: use parent minHeight constraint\n'
         ' │ maxHeight: use parent maxHeight constraint\n'
         ' │\n'
-        ' └─child: RenderLimitedBox#00000 relayoutBoundary=up1 NEEDS-PAINT\n'
+        ' └─child: RenderLimitedBox#00000 relayoutBoundary=up1 NEEDS-PAINT NEEDS-ANNOTATE\n'
         '     parentData: offset=Offset(395.0, 0.0) (can use size)\n'
         '     constraints: BoxConstraints(10.0<=w<=800.0, h=600.0)\n'
         '     size: Size(10.0, 600.0)\n'

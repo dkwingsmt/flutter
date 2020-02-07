@@ -189,6 +189,20 @@ class RenderView extends RenderObject with RenderObjectWithChildMixin<RenderBox>
     return true;
   }
 
+  AnnotationResult<S> search<S>(Offset position) {
+    final AnnotationResult<S> result = AnnotationResult<S>(onlyFirst: false);
+    // print('# New searchAnnotations $position $S');
+    searchAnnotations<S>(result, position);
+    return result;
+  }
+
+  AnnotationEntry<S> searchFirst<S>(Offset position) {
+    final AnnotationResult<S> result = AnnotationResult<S>(onlyFirst: true);
+    // print('# New searchFirstAnnotation $position $S');
+    searchAnnotations<S>(result, position);
+    return result.isEmpty ? null : result.first;
+  }
+
   /// Determines the set of mouse tracker annotations at the given position.
   ///
   /// See also:
@@ -199,9 +213,7 @@ class RenderView extends RenderObject with RenderObjectWithChildMixin<RenderBox>
     // Layer hit testing is done using device pixels, so we have to convert
     // the logical coordinates of the event location back to device pixels
     // here.
-    return layer.findAllAnnotations<MouseTrackerAnnotation>(
-      position * configuration.devicePixelRatio
-    ).annotations;
+    return search<MouseTrackerAnnotation>(position).annotations;
   }
 
   @override
@@ -244,14 +256,14 @@ class RenderView extends RenderObject with RenderObjectWithChildMixin<RenderBox>
 
   void _updateSystemChrome() {
     final Rect bounds = paintBounds;
-    final Offset top = Offset(bounds.center.dx, _window.padding.top / _window.devicePixelRatio);
-    final Offset bottom = Offset(bounds.center.dx, bounds.center.dy - _window.padding.bottom / _window.devicePixelRatio);
-    final SystemUiOverlayStyle upperOverlayStyle = layer.find<SystemUiOverlayStyle>(top);
+    final Offset top = Offset(bounds.center.dx, _window.padding.top) / _window.devicePixelRatio;
+    final Offset bottom = Offset(bounds.center.dx, bounds.center.dy - _window.padding.bottom) / _window.devicePixelRatio;
+    final SystemUiOverlayStyle upperOverlayStyle = searchFirst<SystemUiOverlayStyle>(top)?.annotation;
     // Only android has a customizable system navigation bar.
     SystemUiOverlayStyle lowerOverlayStyle;
     switch (defaultTargetPlatform) {
       case TargetPlatform.android:
-        lowerOverlayStyle = layer.find<SystemUiOverlayStyle>(bottom);
+        lowerOverlayStyle = searchFirst<SystemUiOverlayStyle>(bottom)?.annotation;
         break;
       case TargetPlatform.fuchsia:
       case TargetPlatform.iOS:

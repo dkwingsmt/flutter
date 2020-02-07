@@ -943,6 +943,11 @@ class RenderFlex extends RenderBox with ContainerRenderObjectMixin<RenderBox, Fl
   }
 
   @override
+  bool searchChildrenAnnotations<S>(AnnotationResult<S> result, Offset localPosition) {
+    return defaultSearchChildrenAnnotations(result, localPosition);
+  }
+
+  @override
   void paint(PaintingContext context, Offset offset) {
     if (!_hasOverflow) {
       defaultPaint(context, offset);

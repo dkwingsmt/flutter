@@ -40,6 +40,8 @@ class AnnotationEntry<T> {
   }
 }
 
+typedef AnnotationSearch<S> = bool Function(AnnotationResult<S> result, Offset localPosition);
+
 /// Information collected about a list of annotations that are found in the
 /// layer tree.
 ///
@@ -49,6 +51,10 @@ class AnnotationEntry<T> {
 ///  * [Layer.findAllAnnotations], and [Layer.findAnnotations], which create and
 ///    use an object of this class.
 class AnnotationResult<T> {
+  AnnotationResult({this.onlyFirst});
+
+  final bool onlyFirst;
+
   final List<AnnotationEntry<T>> _entries = <AnnotationEntry<T>>[];
 
   /// Add a new entry to the end of the result.
@@ -63,6 +69,10 @@ class AnnotationResult<T> {
   /// tree.
   Iterable<AnnotationEntry<T>> get entries => _entries;
 
+  bool get isEmpty => _entries.isEmpty;
+  bool get isNotEmpty => _entries.isNotEmpty;
+  AnnotationEntry<T> get first => _entries.first;
+
   /// An unmodifiable list of annotations recorded.
   ///
   /// The first entry is the most specific, typically the one at the leaf of
@@ -72,6 +82,52 @@ class AnnotationResult<T> {
   Iterable<T> get annotations sync* {
     for (final AnnotationEntry<T> entry in _entries)
       yield entry.annotation;
+  }
+
+  bool addWithPaintTransform({
+    @required Matrix4 transform,
+    @required Offset position,
+    @required AnnotationSearch<T> annotationSearch,
+  }) {
+    assert(annotationSearch != null);
+    if (transform != null) {
+      transform = Matrix4.tryInvert(PointerEvent.removePerspectiveTransform(transform));
+      if (transform == null) {
+        // Objects are not visible on screen and cannot be hit-tested.
+        return false;
+      }
+    }
+    return addWithRawTransform(
+      transform: transform,
+      position: position,
+      annotationSearch: annotationSearch,
+    );
+  }
+
+  bool addWithPaintOffset({
+    @required Offset offset,
+    @required Offset position,
+    @required AnnotationSearch<T> annotationSearch,
+  }) {
+    assert(annotationSearch != null);
+    return addWithRawTransform(
+      transform: offset != null ? Matrix4.translationValues(-offset.dx, -offset.dy, 0.0) : null,
+      position: position,
+      annotationSearch: annotationSearch,
+    );
+  }
+
+  bool addWithRawTransform({
+    @required Matrix4 transform,
+    @required Offset position,
+    @required AnnotationSearch<T> annotationSearch,
+  }) {
+    assert(annotationSearch != null);
+    final Offset transformedPosition = position == null || transform == null
+        ? position
+        : MatrixUtils.transformPoint(transform, position);
+    final bool isHit = annotationSearch(this, transformedPosition);
+    return isHit;
   }
 }
 

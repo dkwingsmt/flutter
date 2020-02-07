@@ -592,6 +592,11 @@ class RenderStack extends RenderBox
     return defaultHitTestChildren(result, position: position);
   }
 
+  @override
+  bool searchChildrenAnnotations<S>(AnnotationResult<S> result, Offset localPosition) {
+    return defaultSearchChildrenAnnotations(result, localPosition);
+  }
+
   /// Override in subclasses to customize how the stack paints.
   ///
   /// By default, the stack uses [defaultPaint]. This function is called by

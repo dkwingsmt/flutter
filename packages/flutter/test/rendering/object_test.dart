@@ -24,9 +24,9 @@ void main() {
     renderObject.layout(const BoxConstraints.tightForFinite());  // semantics are only calculated if layout information is up to date.
     owner.flushSemantics();
 
-    expect(onNeedVisualUpdateCallCount, 1);
-    renderObject.markNeedsSemanticsUpdate();
     expect(onNeedVisualUpdateCallCount, 2);
+    renderObject.markNeedsSemanticsUpdate();
+    expect(onNeedVisualUpdateCallCount, 3);
   });
 
   test('detached RenderObject does not do semantics', () {

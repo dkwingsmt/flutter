@@ -105,6 +105,8 @@ HSVColor debugCurrentRepaintColor = _kDebugDefaultRepaintColor;
 /// up the tree.
 bool debugPrintMarkNeedsLayoutStacks = false;
 
+bool debugPrintMarkNeedsAnnotateStacks = false;
+
 /// Log the call stacks that mark render objects as needing paint.
 bool debugPrintMarkNeedsPaintStacks = false;
 

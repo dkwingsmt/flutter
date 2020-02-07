@@ -6,6 +6,8 @@ import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 
+import 'package:vector_math/vector_math_64.dart';
+
 import 'box.dart';
 import 'debug.dart';
 import 'debug_overflow_indicator.dart';
@@ -69,6 +71,22 @@ abstract class RenderShiftedBox extends RenderBox with RenderObjectWithChildMixi
       final BoxParentData childParentData = child.parentData as BoxParentData;
       context.paintChild(child, childParentData.offset + offset);
     }
+  }
+
+  @override
+  bool searchAnnotations<S>(AnnotationResult<S> result, Offset localPosition) {
+    if (child != null) {
+      final BoxParentData childParentData = child.parentData as BoxParentData;
+      return result.addWithPaintOffset(
+        offset: childParentData.offset,
+        position: localPosition,
+        annotationSearch: (AnnotationResult<S> result, Offset transformed) {
+          assert(transformed == localPosition - childParentData.offset);
+          return child.searchAnnotations<S>(result, transformed);
+        },
+      );
+    }
+    return false;
   }
 
   @override

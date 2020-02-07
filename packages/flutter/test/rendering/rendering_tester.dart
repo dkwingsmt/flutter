@@ -83,6 +83,9 @@ class TestRenderingFlutterBinding extends BindingBase with ServicesBinding, Gest
       pipelineOwner.flushLayout();
       if (phase == EnginePhase.layout)
         return;
+      pipelineOwner.flushAnnotation();
+      if (phase == EnginePhase.annotate)
+        return;
       pipelineOwner.flushCompositingBits();
       if (phase == EnginePhase.compositingBits)
         return;

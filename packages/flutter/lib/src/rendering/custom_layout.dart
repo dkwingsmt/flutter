@@ -408,4 +408,9 @@ class RenderCustomMultiChildLayoutBox extends RenderBox
   bool hitTestChildren(BoxHitTestResult result, { Offset position }) {
     return defaultHitTestChildren(result, position: position);
   }
+
+  @override
+  bool searchChildrenAnnotations<S>(AnnotationResult<S> result, Offset localPosition) {
+    return defaultSearchChildrenAnnotations<S>(result, localPosition);
+  }
 }
