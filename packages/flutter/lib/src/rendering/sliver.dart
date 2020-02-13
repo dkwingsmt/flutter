@@ -1293,7 +1293,7 @@ abstract class RenderSliver extends RenderObject {
       if (hitSelf && !containsType)
         return true;
       final bool hitTarget = hitTestChildren(result, mainAxisPosition: mainAxisPosition, crossAxisPosition: crossAxisPosition) || hitSelf;
-      if (hitTarget && selfAnnotationTypes.contains(result.type)) {
+      if (hitTarget && result.isTypedWithin(selfAnnotationTypes)) {
         result.add(SliverHitTestEntry(
           this,
           mainAxisPosition: mainAxisPosition,

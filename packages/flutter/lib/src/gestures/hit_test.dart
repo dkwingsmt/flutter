@@ -121,6 +121,8 @@ class HitTestResult {
 
   final Queue<Matrix4> _transforms;
 
+  bool isTypedWithin(Set<Type> types) => types != null && types.contains(type);
+
   /// Add a [HitTestEntry] to the path.
   ///
   /// The new entry is added at the end of the path, which means entries should

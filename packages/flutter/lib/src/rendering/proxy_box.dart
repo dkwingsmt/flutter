@@ -116,13 +116,11 @@ mixin RenderProxyBoxMixin<T extends RenderBox> on RenderBox, RenderObjectWithChi
 
   @override
   bool hitTestChildren(BoxHitTestResult result, { Offset position }) {
-    // if (child == null || !child.annotationTypes.contains(result.type))
-    //   return false;
     return child?.hitTest(result, position: position) ?? false;
   }
 
   @override
-  Set<Type> get selfAnnotationTypes => const <Type>{};
+  Set<Type> get selfAnnotationTypes => null;
 
   @override
   void applyPaintTransform(RenderObject child, Matrix4 transform) { }
@@ -174,7 +172,7 @@ abstract class RenderProxyBoxWithHitTestBehavior extends RenderProxyBox {
       final bool hitTarget = hitTestChildren(result, position: position) || hitSelf;
       // print('* ${describeIdentity(this)} hitTest $behavior hitTarget $hitTarget $selfAnnotationTypes');
       if ((hitTarget || behavior == HitTestBehavior.translucent)
-          && selfAnnotationTypes.contains(result.type))
+          && result.isTypedWithin(selfAnnotationTypes))
         result.add(BoxHitTestEntry(this, position));
       return hitTarget;
     }
@@ -2860,7 +2858,7 @@ class RenderMouseRegion extends RenderProxyBox {
     final bool hitChildren = hitTestChildren(result, position: position);
     if (result.isNotEmpty && result.stopAtFirstResult)
       return hitChildren;
-    final bool hitTarget = hitSelf && selfAnnotationTypes.contains(result.type);
+    final bool hitTarget = hitSelf && result.isTypedWithin(selfAnnotationTypes);
     if (hitTarget)
       result.add(BoxHitTestEntry(this, position));
     // print('${describeIdentity(this)} hitChildren $hitChildren hitTarget $hitTarget opaque $opaque');
@@ -2871,7 +2869,7 @@ class RenderMouseRegion extends RenderProxyBox {
   bool hitTestSelf(Offset position) => true;
 
   @override
-  Set<Type> get selfAnnotationTypes => _annotationIsActive ? const <Type>{MouseTrackerAnnotation} : const <Type>{};
+  Set<Type> get selfAnnotationTypes => _annotationIsActive ? const <Type>{MouseTrackerAnnotation} : null;
 
   @override
   S annotationFor<S>() => S == MouseTrackerAnnotation ? _hoverAnnotation as S : null;
@@ -3413,8 +3411,9 @@ class RenderMetaData extends RenderProxyBoxWithHitTestBehavior {
     dynamic metaData,
     HitTestBehavior behavior = HitTestBehavior.deferToChild,
     RenderBox child,
-  }) : _metaData = metaData,
-       super(behavior: behavior, child: child);
+  }) : super(behavior: behavior, child: child) {
+    this.metaData = metaData;
+  }
 
   /// Opaque meta data ignored by the render tree
   dynamic get metaData => _metaData;
@@ -3422,13 +3421,16 @@ class RenderMetaData extends RenderProxyBoxWithHitTestBehavior {
   set metaData(dynamic value) {
     if (value == _metaData)
       return;
-    if (_metaData.runtimeType != value.runtimeType)
+    if (_metaData.runtimeType != value.runtimeType) {
       markNeedsAnnotate();
+      _selfAnnotationTypes = value == null ? null : <Type>{value.runtimeType as Type};
+    }
     _metaData = value;
   }
 
   @override
-  Set<Type> get selfAnnotationTypes => <Type>{if (_metaData != null) _metaData.runtimeType as Type};
+  Set<Type> get selfAnnotationTypes => _selfAnnotationTypes;
+  Set<Type> _selfAnnotationTypes;
 
   @override
   void debugFillProperties(DiagnosticPropertiesBuilder properties) {

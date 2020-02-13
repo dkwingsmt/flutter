@@ -2017,6 +2017,7 @@ abstract class RenderObject extends AbstractNode with DiagnosticableTreeMixin im
     }
   }
 
+  // Is never null.
   HashSet<Type> get annotationTypes => _annotationTypes;
   HashSet<Type> _annotationTypes = HashSet<Type>();
 
@@ -2044,7 +2045,8 @@ abstract class RenderObject extends AbstractNode with DiagnosticableTreeMixin im
     visitChildren((RenderObject child) {
       nextAnnotationTypes.addAll(child._annotationTypes);
     });
-    nextAnnotationTypes.addAll(selfAnnotationTypes);
+    if (selfAnnotationTypes != null)
+      nextAnnotationTypes.addAll(selfAnnotationTypes);
     assert(identical(_annotationTypes, previousAnnotationTypes));
     _needsAnnotate = false;
     assert(_childrenNeedingAnnotateCount == 0);
@@ -2955,6 +2957,7 @@ abstract class RenderObject extends AbstractNode with DiagnosticableTreeMixin im
   // If you add yourself to /result/ and still return false, then that means you
   // will see events but so will objects below you.
 
+  // Might be null
   @protected
   Set<Type> get selfAnnotationTypes => const <Type>{HitTestTarget};
 

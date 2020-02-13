@@ -815,7 +815,7 @@ mixin _PlatformViewGestureMixin on RenderBox {
     if (hitTestBehavior == PlatformViewHitTestBehavior.transparent || !size.contains(position)) {
       return false;
     }
-    if (selfAnnotationTypes.contains(result.type))
+    if (result.isTypedWithin(selfAnnotationTypes))
       result.add(BoxHitTestEntry(this, position));
     return hitTestBehavior == PlatformViewHitTestBehavior.opaque;
   }

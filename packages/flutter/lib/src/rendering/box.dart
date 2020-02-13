@@ -2148,7 +2148,7 @@ abstract class RenderBox extends RenderObject {
       if (hitSelf && !containsType)
         return true;
       final bool hitTarget = hitTestChildren(result, position: position) || hitSelf;
-      if (hitTarget && selfAnnotationTypes.contains(result.type)) {
+      if (hitTarget && result.isTypedWithin(selfAnnotationTypes)) {
         // print('* ${describeIdentity(this)} $annotationTypes ${result.type}');
         result.add(BoxHitTestEntry(this, position));
       }
