@@ -2958,8 +2958,10 @@ abstract class RenderObject extends AbstractNode with DiagnosticableTreeMixin im
   // will see events but so will objects below you.
 
   // Might be null
-  @protected
   Set<Type> get selfAnnotationTypes => null;
+
+  @protected
+  Set<Type> get childrenAnnotationTypes => null;
 
   @override
   S annotationFor<S>() => S == HitTestTarget ? this as S : null;
