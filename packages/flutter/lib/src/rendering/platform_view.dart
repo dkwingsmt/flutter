@@ -337,6 +337,9 @@ class RenderUiKitView extends RenderBox {
   bool hitTestSelf(Offset position) => hitTestBehavior != PlatformViewHitTestBehavior.transparent;
 
   @override
+  Set<Type> get selfAnnotationTypes => const <Type>{HitTestTarget};
+
+  @override
   void handleEvent(PointerEvent event, HitTestEntry entry) {
     if (event is! PointerDownEvent) {
       return;

@@ -367,6 +367,9 @@ class ScrollbarPainter extends ChangeNotifier implements CustomPainter {
   }
 
   @override
+  Set<Type> get selfAnnotationTypes => null;
+
+  @override
   bool shouldRepaint(ScrollbarPainter old) {
     // Should repaint if any properties changed.
     return color != old.color

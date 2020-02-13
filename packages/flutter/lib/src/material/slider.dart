@@ -1036,6 +1036,9 @@ class _RenderSlider extends RenderBox with RelayoutWhenSystemFontsChangeMixin {
   bool hitTestSelf(Offset position) => true;
 
   @override
+  Set<Type> get selfAnnotationTypes => const <Type>{HitTestTarget};
+
+  @override
   void handleEvent(PointerEvent event, BoxHitTestEntry entry) {
     assert(debugHandleEvent(event, entry));
     if (event is PointerDownEvent && isInteractive) {

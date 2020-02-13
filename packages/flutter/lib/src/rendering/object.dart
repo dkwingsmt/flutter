@@ -2959,7 +2959,7 @@ abstract class RenderObject extends AbstractNode with DiagnosticableTreeMixin im
 
   // Might be null
   @protected
-  Set<Type> get selfAnnotationTypes => const <Type>{HitTestTarget};
+  Set<Type> get selfAnnotationTypes => null;
 
   @override
   S annotationFor<S>() => S == HitTestTarget ? this as S : null;
