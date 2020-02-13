@@ -1510,6 +1510,9 @@ class _DelegatedPainter extends CustomPainter {
   }
 
   @override
+  bool hitTest(Offset position) => false;
+
+  @override
   bool shouldRepaint(CustomPainter oldDelegate) =>
     !(oldDelegate is _DelegatedPainter && key == oldDelegate.key);
 }

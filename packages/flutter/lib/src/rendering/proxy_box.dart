@@ -116,10 +116,13 @@ mixin RenderProxyBoxMixin<T extends RenderBox> on RenderBox, RenderObjectWithChi
 
   @override
   bool hitTestChildren(BoxHitTestResult result, { Offset position }) {
-    if (child == null || !child.annotationTypes.contains(result.type))
-      return false;
-    return child.hitTest(result, position: position);
+    // if (child == null || !child.annotationTypes.contains(result.type))
+    //   return false;
+    return child?.hitTest(result, position: position) ?? false;
   }
+
+  @override
+  Set<Type> get selfAnnotationTypes => const <Type>{};
 
   @override
   void applyPaintTransform(RenderObject child, Matrix4 transform) { }
@@ -163,18 +166,32 @@ abstract class RenderProxyBoxWithHitTestBehavior extends RenderProxyBox {
 
   @override
   bool hitTest(BoxHitTestResult result, { Offset position }) {
-    bool hitTarget = false;
     if (size.contains(position)) {
-      hitTarget = hitTestChildren(result, position: position) || hitTestSelf(position);
+      final bool hitSelf = hitTestSelf(position);
+      final bool containsType = annotationTypes.contains(result.type);
+      if (hitSelf && !containsType)
+        return true;
+      final bool hitTarget = hitTestChildren(result, position: position) || hitSelf;
+      // print('* ${describeIdentity(this)} hitTest $behavior hitTarget $hitTarget $selfAnnotationTypes');
       if ((hitTarget || behavior == HitTestBehavior.translucent)
           && selfAnnotationTypes.contains(result.type))
         result.add(BoxHitTestEntry(this, position));
+      return hitTarget;
     }
-    return hitTarget;
+    return false;
   }
 
   @override
   bool hitTestSelf(Offset position) => behavior == HitTestBehavior.opaque;
+
+  @override
+  bool hitTestChildren(BoxHitTestResult result, { Offset position }) {
+    if (child == null)
+      return false;
+    if (child.annotationTypes.contains(result.type) || behavior == HitTestBehavior.deferToChild)
+      return child.hitTest(result, position: position);
+    return false;
+  }
 
   @override
   void debugFillProperties(DiagnosticPropertiesBuilder properties) {
@@ -2611,6 +2628,10 @@ class RenderPointerListener extends RenderProxyBoxWithHitTestBehavior {
     size = constraints.biggest;
   }
 
+  @protected
+  @override
+  Set<Type> get selfAnnotationTypes => const <Type>{HitTestTarget};
+
   @override
   void handleEvent(PointerEvent event, HitTestEntry entry) {
     assert(debugHandleEvent(event, entry));
@@ -2833,12 +2854,16 @@ class RenderMouseRegion extends RenderProxyBox {
   bool hitTest(BoxHitTestResult result, {Offset position}) {
     if (!size.contains(position))
       return false;
+    final bool hitSelf = hitTestSelf(position);
+    if (hitSelf && opaque && !annotationTypes.contains(result.type))
+      return true;
     final bool hitChildren = hitTestChildren(result, position: position);
     if (result.isNotEmpty && result.stopAtFirstResult)
       return hitChildren;
-    final bool hitSelf = hitTestSelf(position) && selfAnnotationTypes.contains(result.type);
-    if (hitChildren || hitSelf)
+    final bool hitTarget = hitSelf && selfAnnotationTypes.contains(result.type);
+    if (hitTarget)
       result.add(BoxHitTestEntry(this, position));
+    // print('${describeIdentity(this)} hitChildren $hitChildren hitTarget $hitTarget opaque $opaque');
     return hitChildren || (hitSelf && opaque);
   }
 
@@ -3385,13 +3410,25 @@ class RenderMetaData extends RenderProxyBoxWithHitTestBehavior {
   ///
   /// The [behavior] argument defaults to [HitTestBehavior.deferToChild].
   RenderMetaData({
-    this.metaData,
+    dynamic metaData,
     HitTestBehavior behavior = HitTestBehavior.deferToChild,
     RenderBox child,
-  }) : super(behavior: behavior, child: child);
+  }) : _metaData = metaData,
+       super(behavior: behavior, child: child);
 
   /// Opaque meta data ignored by the render tree
-  dynamic metaData;
+  dynamic get metaData => _metaData;
+  dynamic _metaData;
+  set metaData(dynamic value) {
+    if (value == _metaData)
+      return;
+    if (_metaData.runtimeType != value.runtimeType)
+      markNeedsAnnotate();
+    _metaData = value;
+  }
+
+  @override
+  Set<Type> get selfAnnotationTypes => <Type>{if (_metaData != null) _metaData.runtimeType as Type};
 
   @override
   void debugFillProperties(DiagnosticPropertiesBuilder properties) {

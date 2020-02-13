@@ -498,6 +498,21 @@ class _HitTestableFinder extends ChainedFinder {
   @override
   String get description => '${parent.description} (considering only hit-testable ones)';
 
+  bool _candidateIsChildOfTarget(
+    RenderObject candidate,
+    Object target,
+    Set<Object> tested,
+  ) {
+    while (true) {
+      if (target is! RenderObject || tested.contains(target))
+        return false;
+      tested.add(target);
+      if (target == candidate)
+        return true;
+      target = (target as RenderObject).parent;
+    }
+  }
+
   @override
   Iterable<Element> filter(Iterable<Element> parentCandidates) sync* {
     for (final Element candidate in parentCandidates) {
@@ -506,8 +521,9 @@ class _HitTestableFinder extends ChainedFinder {
       final Offset absoluteOffset = box.localToGlobal(alignment.alongSize(box.size));
       final HitTestResult hitResult = HitTestResult();
       WidgetsBinding.instance.hitTest(hitResult, absoluteOffset);
+      final Set<HitTestTarget> tested = <HitTestTarget>{};
       for (final HitTestEntry entry in hitResult.path) {
-        if (entry.target == candidate.renderObject) {
+        if (_candidateIsChildOfTarget(candidate.renderObject, entry.target, tested)) {
           yield candidate;
           break;
         }

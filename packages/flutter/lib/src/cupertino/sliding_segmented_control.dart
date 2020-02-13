@@ -674,6 +674,10 @@ class _RenderSegmentedControl<T> extends RenderBox
 
   double get totalSeparatorWidth => (_kSeparatorInset.horizontal + _kSeparatorWidth) * (childCount - 1);
 
+  @protected
+  @override
+  Set<Type> get selfAnnotationTypes => const <Type>{HitTestTarget};
+
   @override
   void handleEvent(PointerEvent event, BoxHitTestEntry entry) {
     assert(debugHandleEvent(event, entry));

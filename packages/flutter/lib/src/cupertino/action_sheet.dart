@@ -1329,6 +1329,6 @@ class _RenderCupertinoAlertActions extends RenderBox
 
   @override
   bool hitTestChildren(BoxHitTestResult result, { Offset position }) {
-    return defaultHitTestChildren(result, position: position);
+    return defaultHitTestChildrenCheckingTypes(result, position: position);
   }
 }

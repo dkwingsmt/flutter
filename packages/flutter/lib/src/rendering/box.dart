@@ -2140,12 +2140,19 @@ abstract class RenderBox extends RenderObject {
       }
       return true;
     }());
+    // print('* ${describeIdentity(this)} hitTest ${result.type} $position annoTypes $annotationTypes hitSelf ${hitTestSelf(position)}');
     if (_size.contains(position)) {
-      if (hitTestChildren(result, position: position) || hitTestSelf(position)) {
-        if (selfAnnotationTypes.contains(result.type))
-          result.add(BoxHitTestEntry(this, position));
+      // print('hitting children');
+      final bool hitSelf = hitTestSelf(position);
+      final bool containsType = annotationTypes.contains(result.type);
+      if (hitSelf && !containsType)
         return true;
+      final bool hitTarget = hitTestChildren(result, position: position) || hitSelf;
+      if (hitTarget && selfAnnotationTypes.contains(result.type)) {
+        // print('* ${describeIdentity(this)} $annotationTypes ${result.type}');
+        result.add(BoxHitTestEntry(this, position));
       }
+      return hitTarget;
     }
     return false;
   }
@@ -2486,6 +2493,28 @@ mixin RenderBoxContainerDefaultsMixin<ChildType extends RenderBox, ParentDataTyp
   ///  * [defaultPaint], which paints the children appropriate for this
   ///    hit-testing strategy.
   bool defaultHitTestChildren(BoxHitTestResult result, { Offset position }) {
+    // the x, y parameters have the top left of the node's box as the origin
+    ChildType child = lastChild;
+    while (child != null) {
+      final ParentDataType childParentData = child.parentData as ParentDataType;
+      final bool isHit = result.addWithPaintOffset(
+        offset: childParentData.offset,
+        position: position,
+        hitTest: (BoxHitTestResult result, Offset transformed) {
+          assert(transformed == position - childParentData.offset);
+          return child.hitTest(result, position: transformed);
+        },
+      );
+      if (isHit)
+        return true;
+      if (result.stopAtFirstResult && result.isNotEmpty)
+        return false;
+      child = childParentData.previousSibling;
+    }
+    return false;
+  }
+
+  bool defaultHitTestChildrenCheckingTypes(BoxHitTestResult result, { Offset position }) {
     // the x, y parameters have the top left of the node's box as the origin
     ChildType child = lastChild;
     while (child != null) {

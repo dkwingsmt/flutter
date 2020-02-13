@@ -601,6 +601,10 @@ class _RenderSwitch extends RenderToggleable {
     reactionController.reverse();
   }
 
+  @protected
+  @override
+  Set<Type> get selfAnnotationTypes => const <Type>{HitTestTarget};
+
   @override
   void handleEvent(PointerEvent event, BoxHitTestEntry entry) {
     assert(debugHandleEvent(event, entry));

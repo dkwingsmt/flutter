@@ -227,6 +227,9 @@ class RenderSizedBox extends RenderBox {
   }
 
   @override
+  Set<Type> get selfAnnotationTypes => const <Type>{HitTestTarget};
+
+  @override
   void performLayout() { }
 
   @override

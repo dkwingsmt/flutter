@@ -1500,6 +1500,10 @@ class RenderEditable extends RenderBox with RelayoutWhenSystemFontsChangeMixin {
   @override
   bool hitTestSelf(Offset position) => true;
 
+  @protected
+  @override
+  Set<Type> get selfAnnotationTypes => const <Type>{HitTestTarget};
+
   TapGestureRecognizer _tap;
   LongPressGestureRecognizer _longPress;
 

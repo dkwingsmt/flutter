@@ -32,13 +32,13 @@ void main() {
         '   anchor: 0.0\n'
       ),
     );
-    layout(root);
+    _layout(root);
     root.offset = ViewportOffset.fixed(900.0);
     expect(root, hasAGoodToStringDeep);
     expect(
       root.toStringDeep(minLevel: DiagnosticLevel.info),
       equalsIgnoringHashCodes(
-        'RenderViewport#00000 NEEDS-LAYOUT NEEDS-PAINT NEEDS-ANNOTATE\n'
+        'RenderViewport#00000 NEEDS-LAYOUT NEEDS-PAINT\n'
         '   needs compositing\n'
         '   parentData: <none>\n'
         '   constraints: BoxConstraints(w=800.0, h=600.0)\n'
@@ -67,7 +67,7 @@ void main() {
       ],
     );
     expect(root, hasAGoodToStringDeep);
-    layout(root);
+    _layout(root);
 
     expect(root.size.width, equals(800.0));
     expect(root.size.height, equals(600.0));
@@ -76,7 +76,7 @@ void main() {
     expect(
       root.toStringDeep(minLevel: DiagnosticLevel.info),
       equalsIgnoringHashCodes(
-        'RenderViewport#00000 NEEDS-PAINT NEEDS-COMPOSITING-BITS-UPDATE NEEDS-ANNOTATE\n'
+        'RenderViewport#00000 NEEDS-PAINT NEEDS-COMPOSITING-BITS-UPDATE\n'
         ' │ needs compositing\n'
         ' │ parentData: <none>\n'
         ' │ constraints: BoxConstraints(w=800.0, h=600.0)\n'
@@ -86,7 +86,7 @@ void main() {
         ' │ offset: _FixedViewportOffset#00000(offset: 0.0)\n'
         ' │ anchor: 0.0\n'
         ' │\n'
-        ' ├─center child: RenderSliverToBoxAdapter#00000 relayoutBoundary=up1 NEEDS-PAINT NEEDS-COMPOSITING-BITS-UPDATE NEEDS-ANNOTATE\n'
+        ' ├─center child: RenderSliverToBoxAdapter#00000 relayoutBoundary=up1 NEEDS-PAINT NEEDS-COMPOSITING-BITS-UPDATE\n'
         ' │ │ parentData: paintOffset=Offset(0.0, 0.0) (can use size)\n'
         ' │ │ constraints: SliverConstraints(AxisDirection.down,\n'
         ' │ │   GrowthDirection.forward, ScrollDirection.idle, scrollOffset:\n'
@@ -97,12 +97,12 @@ void main() {
         ' │ │ geometry: SliverGeometry(scrollExtent: 400.0, paintExtent: 400.0,\n'
         ' │ │   maxPaintExtent: 400.0, cacheExtent: 400.0)\n'
         ' │ │\n'
-        ' │ └─child: RenderSizedBox#00000 NEEDS-PAINT NEEDS-ANNOTATE\n'
+        ' │ └─child: RenderSizedBox#00000 NEEDS-PAINT\n'
         ' │     parentData: paintOffset=Offset(0.0, -0.0) (can use size)\n'
         ' │     constraints: BoxConstraints(w=800.0, 0.0<=h<=Infinity)\n'
         ' │     size: Size(800.0, 400.0)\n'
         ' │\n'
-        ' ├─child 1: RenderSliverToBoxAdapter#00000 relayoutBoundary=up1 NEEDS-PAINT NEEDS-COMPOSITING-BITS-UPDATE NEEDS-ANNOTATE\n'
+        ' ├─child 1: RenderSliverToBoxAdapter#00000 relayoutBoundary=up1 NEEDS-PAINT NEEDS-COMPOSITING-BITS-UPDATE\n'
         ' │ │ parentData: paintOffset=Offset(0.0, 400.0) (can use size)\n'
         ' │ │ constraints: SliverConstraints(AxisDirection.down,\n'
         ' │ │   GrowthDirection.forward, ScrollDirection.idle, scrollOffset:\n'
@@ -114,12 +114,12 @@ void main() {
         ' │ │   maxPaintExtent: 400.0, hasVisualOverflow: true, cacheExtent:\n'
         ' │ │   400.0)\n'
         ' │ │\n'
-        ' │ └─child: RenderSizedBox#00000 NEEDS-PAINT NEEDS-ANNOTATE\n'
+        ' │ └─child: RenderSizedBox#00000 NEEDS-PAINT\n'
         ' │     parentData: paintOffset=Offset(0.0, -0.0) (can use size)\n'
         ' │     constraints: BoxConstraints(w=800.0, 0.0<=h<=Infinity)\n'
         ' │     size: Size(800.0, 400.0)\n'
         ' │\n'
-        ' ├─child 2: RenderSliverToBoxAdapter#00000 relayoutBoundary=up1 NEEDS-PAINT NEEDS-COMPOSITING-BITS-UPDATE NEEDS-ANNOTATE\n'
+        ' ├─child 2: RenderSliverToBoxAdapter#00000 relayoutBoundary=up1 NEEDS-PAINT NEEDS-COMPOSITING-BITS-UPDATE\n'
         ' │ │ parentData: paintOffset=Offset(0.0, 800.0) (can use size)\n'
         ' │ │ constraints: SliverConstraints(AxisDirection.down,\n'
         ' │ │   GrowthDirection.forward, ScrollDirection.idle, scrollOffset:\n'
@@ -131,12 +131,12 @@ void main() {
         ' │ │   maxPaintExtent: 400.0, hasVisualOverflow: true, cacheExtent:\n'
         ' │ │   50.0)\n'
         ' │ │\n'
-        ' │ └─child: RenderSizedBox#00000 NEEDS-PAINT NEEDS-ANNOTATE\n'
+        ' │ └─child: RenderSizedBox#00000 NEEDS-PAINT\n'
         ' │     parentData: paintOffset=Offset(0.0, -0.0) (can use size)\n'
         ' │     constraints: BoxConstraints(w=800.0, 0.0<=h<=Infinity)\n'
         ' │     size: Size(800.0, 400.0)\n'
         ' │\n'
-        ' ├─child 3: RenderSliverToBoxAdapter#00000 relayoutBoundary=up1 NEEDS-PAINT NEEDS-COMPOSITING-BITS-UPDATE NEEDS-ANNOTATE\n'
+        ' ├─child 3: RenderSliverToBoxAdapter#00000 relayoutBoundary=up1 NEEDS-PAINT NEEDS-COMPOSITING-BITS-UPDATE\n'
         ' │ │ parentData: paintOffset=Offset(0.0, 1200.0) (can use size)\n'
         ' │ │ constraints: SliverConstraints(AxisDirection.down,\n'
         ' │ │   GrowthDirection.forward, ScrollDirection.idle, scrollOffset:\n'
@@ -147,12 +147,12 @@ void main() {
         ' │ │ geometry: SliverGeometry(scrollExtent: 400.0, hidden,\n'
         ' │ │   maxPaintExtent: 400.0, hasVisualOverflow: true)\n'
         ' │ │\n'
-        ' │ └─child: RenderSizedBox#00000 NEEDS-PAINT NEEDS-ANNOTATE\n'
+        ' │ └─child: RenderSizedBox#00000 NEEDS-PAINT\n'
         ' │     parentData: paintOffset=Offset(0.0, -0.0) (can use size)\n'
         ' │     constraints: BoxConstraints(w=800.0, 0.0<=h<=Infinity)\n'
         ' │     size: Size(800.0, 400.0)\n'
         ' │\n'
-        ' └─child 4: RenderSliverToBoxAdapter#00000 relayoutBoundary=up1 NEEDS-PAINT NEEDS-COMPOSITING-BITS-UPDATE NEEDS-ANNOTATE\n'
+        ' └─child 4: RenderSliverToBoxAdapter#00000 relayoutBoundary=up1 NEEDS-PAINT NEEDS-COMPOSITING-BITS-UPDATE\n'
         '   │ parentData: paintOffset=Offset(0.0, 1600.0) (can use size)\n'
         '   │ constraints: SliverConstraints(AxisDirection.down,\n'
         '   │   GrowthDirection.forward, ScrollDirection.idle, scrollOffset:\n'
@@ -163,7 +163,7 @@ void main() {
         '   │ geometry: SliverGeometry(scrollExtent: 400.0, hidden,\n'
         '   │   maxPaintExtent: 400.0, hasVisualOverflow: true)\n'
         '   │\n'
-        '   └─child: RenderSizedBox#00000 NEEDS-PAINT NEEDS-ANNOTATE\n'
+        '   └─child: RenderSizedBox#00000 NEEDS-PAINT\n'
         '       parentData: paintOffset=Offset(0.0, -0.0) (can use size)\n'
         '       constraints: BoxConstraints(w=800.0, 0.0<=h<=Infinity)\n'
         '       size: Size(800.0, 400.0)\n'
@@ -224,7 +224,7 @@ void main() {
         RenderSliverToBoxAdapter(child: e = RenderSizedBox(const Size(100.0, 400.0))),
       ],
     );
-    layout(root);
+    _layout(root);
 
     expect(root.size.width, equals(800.0));
     expect(root.size.height, equals(600.0));
@@ -283,7 +283,7 @@ void main() {
         RenderSliverToBoxAdapter(child: e = RenderSizedBox(const Size(400.0, 100.0))),
       ],
     );
-    layout(root);
+    _layout(root);
 
     expect(root.size.width, equals(800.0));
     expect(root.size.height, equals(600.0));
@@ -367,7 +367,7 @@ void main() {
         RenderSliverToBoxAdapter(child: e = RenderSizedBox(const Size(400.0, 100.0))),
       ],
     );
-    layout(root);
+    _layout(root);
 
     expect(root.size.width, equals(800.0));
     expect(root.size.height, equals(600.0));
@@ -417,7 +417,7 @@ void main() {
       offset: ViewportOffset.zero(),
     );
     expect(root, hasAGoodToStringDeep);
-    layout(root);
+    _layout(root);
     root.offset = ViewportOffset.fixed(900.0);
     pumpFrame();
   });
@@ -435,7 +435,7 @@ void main() {
         RenderSliverToBoxAdapter(child: e = RenderSizedBox(const Size(100.0, 400.0))),
       ],
     );
-    layout(root);
+    _layout(root);
 
     expect(root.size.width, equals(800.0));
     expect(root.size.height, equals(600.0));
@@ -495,7 +495,7 @@ void main() {
         RenderSliverToBoxAdapter(child: e = RenderSizedBox(const Size(100.0, 400.0))),
       ],
     );
-    layout(root);
+    _layout(root);
 
     expect(root.size.width, equals(800.0));
     expect(root.size.height, equals(600.0));
@@ -549,7 +549,7 @@ void main() {
         RenderSliverToBoxAdapter(child: e = RenderSizedBox(const Size(400.0, 100.0))),
       ],
     );
-    layout(root);
+    _layout(root);
 
     expect(root.size.width, equals(800.0));
     expect(root.size.height, equals(600.0));
@@ -603,7 +603,7 @@ void main() {
         RenderSliverToBoxAdapter(child: e = RenderSizedBox(const Size(400.0, 100.0))),
       ],
     );
-    layout(root);
+    _layout(root);
 
     expect(root.size.width, equals(800.0));
     expect(root.size.height, equals(600.0));
@@ -655,7 +655,7 @@ void main() {
         ],
       ),
     );
-    layout(root);
+    _layout(root);
 
     expect(root.size.width, equals(800.0));
     expect(root.size.height, equals(600.0));
@@ -676,7 +676,7 @@ void main() {
         ],
       ),
     );
-    layout(root);
+    _layout(root);
 
     expect(root.size.width, equals(800.0));
     expect(root.size.height, equals(600.0));
@@ -726,7 +726,7 @@ void main() {
         sliver,
       ],
     );
-    layout(root);
+    _layout(root);
 
     final Rect expectedRect = Rect.fromLTWH(0.0, 0.0, root.size.width, height);
 
@@ -748,7 +748,7 @@ void main() {
         sliver,
       ],
     );
-    layout(root);
+    _layout(root);
 
     final Rect expectedRect = Rect.fromLTWH(0.0, 0.0, width, root.size.height);
 
@@ -769,7 +769,7 @@ void main() {
         sliver,
       ],
     );
-    layout(root);
+    _layout(root);
 
     expect(sliver.constraints.precedingScrollExtent, 0.0);
   });
@@ -795,7 +795,7 @@ void main() {
         sliver3,
       ],
     );
-    layout(root);
+    _layout(root);
 
     // The 3rd Sliver comes after 300.0px of preceding scroll extent by first 2 Slivers.
     expect(sliver3.constraints.precedingScrollExtent, 300.0);
@@ -822,7 +822,7 @@ void main() {
         sliver3,
       ],
     );
-    layout(root);
+    _layout(root);
 
     // The 3rd Sliver comes after 300.0px of preceding scroll extent by first 2 Slivers.
     // In this test a ViewportOffset is applied to simulate a scrollOffset. That
@@ -998,6 +998,10 @@ void main() {
     }
     expect(threw, true);
   });
+}
+
+void _layout(RenderBox box) {
+  layout(box, phase: EnginePhase.annotate);
 }
 
 class _DummyHitTestTarget implements HitTestAnnotator {

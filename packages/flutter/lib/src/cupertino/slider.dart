@@ -491,6 +491,10 @@ class _RenderCupertinoSlider extends RenderConstrainedBox {
     return (position.dx - _thumbCenter).abs() < CupertinoThumbPainter.radius + _kPadding;
   }
 
+  @protected
+  @override
+  Set<Type> get selfAnnotationTypes => const <Type>{HitTestTarget};
+
   @override
   void handleEvent(PointerEvent event, BoxHitTestEntry entry) {
     assert(debugHandleEvent(event, entry));

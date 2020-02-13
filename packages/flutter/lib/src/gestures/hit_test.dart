@@ -89,6 +89,10 @@ class HitTestResult {
      : _path = <HitTestEntry>[],
        _transforms = Queue<Matrix4>();
 
+  static HitTestResult create<T>({bool stopAtFirstResult = false}) {
+    return HitTestResult(type: T, stopAtFirstResult: stopAtFirstResult);
+  }
+
   /// Wraps `result` (usually a subtype of [HitTestResult]) to create a
   /// generic [HitTestResult].
   ///

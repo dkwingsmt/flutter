@@ -1971,6 +1971,7 @@ abstract class RenderObject extends AbstractNode with DiagnosticableTreeMixin im
 
   void markNeedsAnnotate() {
     assert(owner == null || !owner.debugDoingAnnotate);
+    // print('* ${describeIdentity(this)} markNeedsAnnotate $_needsAnnotate');
     if (_needsAnnotate) {
       return;
     }
@@ -2050,6 +2051,7 @@ abstract class RenderObject extends AbstractNode with DiagnosticableTreeMixin im
     if (nextAnnotationTypes == previousAnnotationTypes) {
       return;
     }
+    // print('* ${describeIdentity(this)} annotateAncestors $nextAnnotationTypes');
     _annotationTypes = nextAnnotationTypes;
     if (parent != null) {
       final RenderObject parent = this.parent as RenderObject;

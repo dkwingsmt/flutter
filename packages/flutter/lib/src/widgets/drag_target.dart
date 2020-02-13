@@ -629,7 +629,7 @@ class _DragAvatar<T> extends Drag {
   void updateDrag(Offset globalPosition) {
     _lastOffset = globalPosition - dragStartPoint;
     _entry.markNeedsBuild();
-    final HitTestResult result = HitTestResult();
+    final HitTestResult result = HitTestResult.create<_DragTargetState<T>>();
     WidgetsBinding.instance.hitTest(result, globalPosition + feedbackOffset);
 
     final List<_DragTargetState<T>> targets = _getDragTargets(result.path).toList();

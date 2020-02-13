@@ -749,7 +749,7 @@ class RenderWrap extends RenderBox with ContainerRenderObjectMixin<RenderBox, Wr
 
   @override
   bool hitTestChildren(BoxHitTestResult result, { Offset position }) {
-    return defaultHitTestChildren(result, position: position);
+    return defaultHitTestChildrenCheckingTypes(result, position: position);
   }
 
   @override

@@ -449,6 +449,10 @@ abstract class RenderToggleable extends RenderConstrainedBox {
   @override
   bool hitTestSelf(Offset position) => true;
 
+  @protected
+  @override
+  Set<Type> get selfAnnotationTypes => const <Type>{HitTestTarget};
+
   @override
   void handleEvent(PointerEvent event, BoxHitTestEntry entry) {
     assert(debugHandleEvent(event, entry));

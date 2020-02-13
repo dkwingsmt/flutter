@@ -939,7 +939,7 @@ class RenderFlex extends RenderBox with ContainerRenderObjectMixin<RenderBox, Fl
 
   @override
   bool hitTestChildren(BoxHitTestResult result, { Offset position }) {
-    return defaultHitTestChildren(result, position: position);
+    return defaultHitTestChildrenCheckingTypes(result, position: position);
   }
 
   @override
