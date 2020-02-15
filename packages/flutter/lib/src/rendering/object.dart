@@ -32,6 +32,8 @@ class ParentData {
   @mustCallSuper
   void detach() { }
 
+  bool recordedNeedsAnnotation = false;
+
   @override
   String toString() => '<none>';
 }
@@ -1329,9 +1331,9 @@ abstract class RenderObject extends AbstractNode with DiagnosticableTreeMixin im
     markNeedsAnnotate();
     markNeedsCompositingBitsUpdate();
     markNeedsSemanticsUpdate();
-    if (child._needsAnnotate)
-      _childrenNeedingAnnotateCount += 1;
     super.adoptChild(child);
+    if (child._needsAnnotate)
+      _childStartsNeedingAnnotate(child);
   }
 
   /// Called by subclasses when they decide a render object is no longer a child.
@@ -1340,14 +1342,14 @@ abstract class RenderObject extends AbstractNode with DiagnosticableTreeMixin im
   /// in other cases will lead to an inconsistent tree and probably cause crashes.
   @override
   void dropChild(RenderObject child) {
+    if (child._needsAnnotate)
+      _childStopsNeedingAnnotate(child);
     assert(_debugCanPerformMutations);
     assert(child != null);
     assert(child.parentData != null);
     child._cleanRelayoutBoundary();
     child.parentData.detach();
     child.parentData = null;
-    if (child._needsAnnotate)
-      _childrenNeedingAnnotateCount -= 1;
     super.dropChild(child);
     markNeedsLayout();
     markNeedsAnnotate();
@@ -1466,9 +1468,6 @@ abstract class RenderObject extends AbstractNode with DiagnosticableTreeMixin im
     }
     if (_needsAnnotate) {
       _needsAnnotate = false;
-      if (parent is RenderObject) {
-        (parent as RenderObject)._childrenNeedingAnnotateCount -= 1;
-      }
       markNeedsAnnotate();
     }
     if (_needsCompositingBitsUpdate) {
@@ -1988,7 +1987,7 @@ abstract class RenderObject extends AbstractNode with DiagnosticableTreeMixin im
 
     if (parent is RenderObject) {
       final RenderObject parent = this.parent as RenderObject;
-      parent.markUniqueChildNeedsAnnotate();
+      parent.handleChildNeedsAnnotate(this);
     } else {
       owner?.requestVisualUpdate();
     }
@@ -2004,9 +2003,22 @@ abstract class RenderObject extends AbstractNode with DiagnosticableTreeMixin im
     return childrenNeedingAnnotateCount;
   }
 
-  @protected
-  void markUniqueChildNeedsAnnotate() {
+  void _childStartsNeedingAnnotate(RenderObject child) {
+    if (child.parentData.recordedNeedsAnnotation)
+      return;
     _childrenNeedingAnnotateCount += 1;
+    child.parentData.recordedNeedsAnnotation = true;
+  }
+
+  void _childStopsNeedingAnnotate(RenderObject child) {
+    assert(child.parentData.recordedNeedsAnnotation);
+    child.parentData.recordedNeedsAnnotation = false;
+    _childrenNeedingAnnotateCount -= 1;
+  }
+
+  @protected
+  void handleChildNeedsAnnotate(RenderObject child) {
+    _childStartsNeedingAnnotate(child);
     if (_childrenNeedingAnnotateCount == 1 && !_needsAnnotate) {
       markNeedsAnnotate();
       assert(_childrenNeedingAnnotateCount == 1);
@@ -2057,15 +2069,15 @@ abstract class RenderObject extends AbstractNode with DiagnosticableTreeMixin im
     _annotationTypes = nextAnnotationTypes;
     if (parent != null) {
       final RenderObject parent = this.parent as RenderObject;
-      parent.markUniqueChildAnnotated();
+      parent.handleChildAnnotated(this);
     }
     assert(!_needsAnnotate);
     assert(_childrenNeedingAnnotateCount == 0);
   }
 
   @protected
-  void markUniqueChildAnnotated() {
-    _childrenNeedingAnnotateCount -= 1;
+  void handleChildAnnotated(RenderObject child) {
+    _childStopsNeedingAnnotate(child);
     assert(() {
       final int calculatedCount = _debugChildrenNeedingAnnotateCount();
       assert(calculatedCount == _childrenNeedingAnnotateCount,
