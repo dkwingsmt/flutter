@@ -2144,7 +2144,7 @@ abstract class RenderBox extends RenderObject {
     if (_size.contains(position)) {
       // print('hitting children');
       final bool hitSelf = hitTestSelf(position);
-      final bool containsType = annotationTypes.contains(result.type);
+      final bool containsType = result.isTypedWithin(annotationTypes);
       if (hitSelf && !containsType)
         return true;
       final bool hitTarget = hitTestChildren(result, position: position) || hitSelf;
@@ -2519,7 +2519,7 @@ mixin RenderBoxContainerDefaultsMixin<ChildType extends RenderBox, ParentDataTyp
     ChildType child = lastChild;
     while (child != null) {
       final ParentDataType childParentData = child.parentData as ParentDataType;
-      if (child.annotationTypes.contains(result.type)) {
+      if (result.isTypedWithin(child.annotationTypes)) {
         final bool isHit = result.addWithPaintOffset(
           offset: childParentData.offset,
           position: position,

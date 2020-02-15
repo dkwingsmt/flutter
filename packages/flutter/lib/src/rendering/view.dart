@@ -183,7 +183,7 @@ class RenderView extends RenderObject with RenderObjectWithChildMixin<RenderBox>
   /// coordinate system as that expected by the root [Layer], which will
   /// normally be in physical (device) pixels.
   bool hitTest(HitTestResult result, { Offset position }) {
-    if (child != null && child.annotationTypes.contains(result.type))
+    if (child != null && result.isTypedWithin(child.annotationTypes))
       child.hitTest(BoxHitTestResult.wrap(result), position: position);
     if (result.type == HitTestTarget)
       result.add(HitTestEntry(this));

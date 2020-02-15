@@ -166,7 +166,7 @@ abstract class RenderProxyBoxWithHitTestBehavior extends RenderProxyBox {
   bool hitTest(BoxHitTestResult result, { Offset position }) {
     if (size.contains(position)) {
       final bool hitSelf = hitTestSelf(position);
-      final bool containsType = annotationTypes.contains(result.type);
+      final bool containsType = result.isTypedWithin(annotationTypes);
       if (hitSelf && !containsType)
         return true;
       final bool hitTarget = hitTestChildren(result, position: position) || hitSelf;
@@ -186,7 +186,7 @@ abstract class RenderProxyBoxWithHitTestBehavior extends RenderProxyBox {
   bool hitTestChildren(BoxHitTestResult result, { Offset position }) {
     if (child == null)
       return false;
-    if (child.annotationTypes.contains(result.type) || behavior == HitTestBehavior.deferToChild)
+    if (result.isTypedWithin(child.annotationTypes) || behavior == HitTestBehavior.deferToChild)
       return child.hitTest(result, position: position);
     return false;
   }
@@ -2853,7 +2853,7 @@ class RenderMouseRegion extends RenderProxyBox {
     if (!size.contains(position))
       return false;
     final bool hitSelf = hitTestSelf(position);
-    if (hitSelf && opaque && !annotationTypes.contains(result.type))
+    if (hitSelf && opaque && !result.isTypedWithin(annotationTypes))
       return true;
     final bool hitChildren = hitTestChildren(result, position: position);
     if (result.isNotEmpty && result.stopAtFirstResult)

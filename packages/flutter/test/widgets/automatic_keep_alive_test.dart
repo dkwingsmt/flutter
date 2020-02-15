@@ -619,9 +619,6 @@ class RenderSliverMultiBoxAdaptorAlt extends RenderSliver with
   RenderSliverBoxChildManager get childManager => _childManager;
   final RenderSliverBoxChildManager _childManager;
 
-  @override
-  bool recordedNeedsAnnotation;
-
   final List<RenderBox> children = <RenderBox>[];
 
   void insert(RenderBox child, { RenderBox after }) {

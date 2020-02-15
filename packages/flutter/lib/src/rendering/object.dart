@@ -32,8 +32,6 @@ class ParentData {
   @mustCallSuper
   void detach() { }
 
-  bool recordedNeedsAnnotation = false;
-
   @override
   String toString() => '<none>';
 }
@@ -1332,8 +1330,6 @@ abstract class RenderObject extends AbstractNode with DiagnosticableTreeMixin im
     markNeedsCompositingBitsUpdate();
     markNeedsSemanticsUpdate();
     super.adoptChild(child);
-    if (child._needsAnnotate)
-      _childStartsNeedingAnnotate(child);
   }
 
   /// Called by subclasses when they decide a render object is no longer a child.
@@ -1342,8 +1338,6 @@ abstract class RenderObject extends AbstractNode with DiagnosticableTreeMixin im
   /// in other cases will lead to an inconsistent tree and probably cause crashes.
   @override
   void dropChild(RenderObject child) {
-    if (child._needsAnnotate)
-      _childStopsNeedingAnnotate(child);
     assert(_debugCanPerformMutations);
     assert(child != null);
     assert(child.parentData != null);
@@ -1993,75 +1987,42 @@ abstract class RenderObject extends AbstractNode with DiagnosticableTreeMixin im
     }
   }
 
-  int _childrenNeedingAnnotateCount = 0;
-  int _debugChildrenNeedingAnnotateCount() {
-    int childrenNeedingAnnotateCount = 0;
-    visitChildren((RenderObject child) {
-      if (child._needsAnnotate)
-        childrenNeedingAnnotateCount += 1;
-    });
-    return childrenNeedingAnnotateCount;
-  }
-
-  void _childStartsNeedingAnnotate(RenderObject child) {
-    if (child.parentData.recordedNeedsAnnotation)
-      return;
-    _childrenNeedingAnnotateCount += 1;
-    child.parentData.recordedNeedsAnnotation = true;
-  }
-
-  void _childStopsNeedingAnnotate(RenderObject child) {
-    assert(child.parentData.recordedNeedsAnnotation);
-    child.parentData.recordedNeedsAnnotation = false;
-    _childrenNeedingAnnotateCount -= 1;
-  }
-
   @protected
   void handleChildNeedsAnnotate(RenderObject child) {
-    _childStartsNeedingAnnotate(child);
-    if (_childrenNeedingAnnotateCount == 1 && !_needsAnnotate) {
-      markNeedsAnnotate();
-      assert(_childrenNeedingAnnotateCount == 1);
-    } else {
-      if (owner != null) {
-        owner.requestVisualUpdate();
-      }
-    }
+    markNeedsAnnotate();
   }
 
-  // Is never null.
+  // Maybe null
   HashSet<Type> get annotationTypes => _annotationTypes;
-  HashSet<Type> _annotationTypes = HashSet<Type>();
+  HashSet<Type> _annotationTypes;
 
-  /// Compute the annotation types that this render object and its children
-  /// might provide.
-  ///
-  /// This method is the main entry point for parents to ask their children to
-  /// update their annotation information.
-  ///
-  /// Subclasses should not override [annotate] directly. Instead, they should
-  /// override [performAnnotate] and/or [reportAnnotationTypes]. The [annotate]
-  /// method delegates the actual work to these methods.
-  ///
-  /// The parent's [performAnnotate] method should call the [annotate] of all
-  /// its children from [childrenAnnotators] if desired. It is the [annotate]
-  /// method's responsibility (as implemented here) to return early if the child
-  /// does not need to do any work to update its layout information.
-  void annotateAncestors() {
-    assert(_childrenNeedingAnnotateCount == 0,
-      'The ${describeIdentity(this)}\'s annotateAncestors() function is called '
-      'while there are $_childrenNeedingAnnotateCount children left un-annotated.',
-    );
-    final HashSet<Type> previousAnnotationTypes = _annotationTypes;
-    final HashSet<Type> nextAnnotationTypes = HashSet<Type>();
+  @protected
+  HashSet<Type> collectSubtreeAnnotationTypes() {
+    HashSet<Type> nextAnnotationTypes;
     visitChildren((RenderObject child) {
+      if (child._annotationTypes == null)
+        return;
+      nextAnnotationTypes ??= HashSet<Type>();
       nextAnnotationTypes.addAll(child._annotationTypes);
     });
-    if (selfAnnotationTypes != null)
+    if (selfAnnotationTypes != null) {
+      nextAnnotationTypes ??= HashSet<Type>();
       nextAnnotationTypes.addAll(selfAnnotationTypes);
+    }
+    return nextAnnotationTypes;
+  }
+
+  // Called once per annotation phase indicating that either a child or itself
+  // has annotation changed.
+  //
+  // Collects subtree annotation types and send to parent, and resets
+  // _needsAnnotation.
+  void annotateAncestors() {
+    final HashSet<Type> previousAnnotationTypes = _annotationTypes;
+    final HashSet<Type> nextAnnotationTypes = collectSubtreeAnnotationTypes();
+    assert(nextAnnotationTypes == null || nextAnnotationTypes.isNotEmpty);
     assert(identical(_annotationTypes, previousAnnotationTypes));
     _needsAnnotate = false;
-    assert(_childrenNeedingAnnotateCount == 0);
     if (nextAnnotationTypes == previousAnnotationTypes) {
       return;
     }
@@ -2071,23 +2032,11 @@ abstract class RenderObject extends AbstractNode with DiagnosticableTreeMixin im
       final RenderObject parent = this.parent as RenderObject;
       parent.handleChildAnnotated(this);
     }
-    assert(!_needsAnnotate);
-    assert(_childrenNeedingAnnotateCount == 0);
   }
 
   @protected
   void handleChildAnnotated(RenderObject child) {
-    _childStopsNeedingAnnotate(child);
-    assert(() {
-      final int calculatedCount = _debugChildrenNeedingAnnotateCount();
-      assert(calculatedCount == _childrenNeedingAnnotateCount,
-        'The ${describeIdentity(this)} records $_childrenNeedingAnnotateCount '
-        'children needing annotate, while there are actually $calculatedCount.'
-      );
-      return true;
-    }());
-    if (_childrenNeedingAnnotateCount == 0)
-      annotateAncestors();
+    annotateAncestors();
   }
 
   // Override this method to report whether this render object provides an
@@ -3213,6 +3162,18 @@ mixin RenderObjectWithChildMixin<ChildType extends RenderObject> on RenderObject
   }
 
   @override
+  HashSet<Type> collectSubtreeAnnotationTypes() {
+    final HashSet<Type> childTypes = child?.annotationTypes;
+    final Set<Type> selfTypes = selfAnnotationTypes;
+    if (selfTypes == null)
+      return childTypes;
+    final HashSet<Type> types = HashSet<Type>.from(selfTypes);
+    if (childTypes != null)
+      types.addAll(childTypes);
+    return types;
+  }
+
+  @override
   List<DiagnosticsNode> debugDescribeChildren() {
     return child != null ? <DiagnosticsNode>[child.toDiagnosticsNode(name: 'child')] : <DiagnosticsNode>[];
   }
@@ -3229,6 +3190,8 @@ mixin ContainerParentDataMixin<ChildType extends RenderObject> on ParentData {
   ChildType previousSibling;
   /// The next sibling in the parent's child list.
   ChildType nextSibling;
+
+  bool recordedNeedsAnnotation = false;
 
   /// Clear the sibling pointers.
   @override
@@ -3319,6 +3282,20 @@ mixin ContainerRenderObjectMixin<ChildType extends RenderObject, ParentDataType 
       return true;
     }());
     return true;
+  }
+
+  @override
+  void adoptChild(RenderObject child) {
+    super.adoptChild(child);
+    if (child._needsAnnotate)
+      _childStartsNeedingAnnotate(child);
+  }
+
+  @override
+  void dropChild(RenderObject child) {
+    if (child._needsAnnotate)
+      _childStopsNeedingAnnotate(child);
+    super.dropChild(child);
   }
 
   ChildType _firstChild;
@@ -3518,6 +3495,62 @@ mixin ContainerRenderObjectMixin<ChildType extends RenderObject, ParentDataType 
     assert(child.parent == this);
     final ParentDataType childParentData = child.parentData as ParentDataType;
     return childParentData.nextSibling;
+  }
+
+  int _childrenNeedingAnnotateCount = 0;
+  int _debugChildrenNeedingAnnotateCount() {
+    int childrenNeedingAnnotateCount = 0;
+    visitChildren((RenderObject child) {
+      if (child._needsAnnotate)
+        childrenNeedingAnnotateCount += 1;
+    });
+    return childrenNeedingAnnotateCount;
+  }
+
+  void _childStartsNeedingAnnotate(RenderObject child) {
+    final ParentDataType childParentData = child.parentData as ParentDataType;
+    if (childParentData.recordedNeedsAnnotation)
+      return;
+    _childrenNeedingAnnotateCount += 1;
+    childParentData.recordedNeedsAnnotation = true;
+  }
+
+  void _childStopsNeedingAnnotate(RenderObject child) {
+    final ParentDataType childParentData = child.parentData as ParentDataType;
+    assert(childParentData.recordedNeedsAnnotation);
+    childParentData.recordedNeedsAnnotation = false;
+    _childrenNeedingAnnotateCount -= 1;
+  }
+
+  @protected
+  @override
+  void handleChildNeedsAnnotate(RenderObject child) {
+    _childStartsNeedingAnnotate(child);
+    if (_childrenNeedingAnnotateCount == 1 && !_needsAnnotate) {
+      markNeedsAnnotate();
+      assert(_childrenNeedingAnnotateCount == 1);
+    } else {
+      // Is it necessary
+      if (owner != null) {
+        owner.requestVisualUpdate();
+      }
+    }
+  }
+
+  @protected
+  @override
+  void handleChildAnnotated(RenderObject child) {
+    _childStopsNeedingAnnotate(child);
+    assert(() {
+      final int calculatedCount = _debugChildrenNeedingAnnotateCount();
+      assert(calculatedCount == _childrenNeedingAnnotateCount,
+        'The ${describeIdentity(this)} records $_childrenNeedingAnnotateCount '
+        'children needing annotate, while there are actually $calculatedCount.'
+      );
+      return true;
+    }());
+    if (_childrenNeedingAnnotateCount == 0)
+      annotateAncestors();
   }
 
   @override

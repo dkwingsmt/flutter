@@ -1289,7 +1289,7 @@ abstract class RenderSliver extends RenderObject {
     if (mainAxisPosition >= 0.0 && mainAxisPosition < geometry.hitTestExtent &&
         crossAxisPosition >= 0.0 && crossAxisPosition < constraints.crossAxisExtent) {
       final bool hitSelf = hitTestSelf(mainAxisPosition: mainAxisPosition, crossAxisPosition: crossAxisPosition);
-      final bool containsType = annotationTypes.contains(result.type);
+      final bool containsType = result.isTypedWithin(annotationTypes);
       if (hitSelf && !containsType)
         return true;
       final bool hitTarget = hitTestChildren(result, mainAxisPosition: mainAxisPosition, crossAxisPosition: crossAxisPosition) || hitSelf;
