@@ -2,12 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import 'dart:ui' show hashValues, Image;
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter/painting.dart';
 
 /// A mouse cursor that does when activated.
 ///
@@ -156,33 +153,4 @@ class SystemMouseCursors {
   ///
   /// Typically the shape of a closed hand.
   static const SystemMouseCursor grabbing = SystemMouseCursor._(shape: 0x6631ce, debugDescription: 'grabbing');
-}
-
-@immutable
-class ImageMouseCursorCacheKey {
-  const ImageMouseCursorCacheKey({
-    @required this.imageKey,
-    @required this.hotSpot,
-  }) : assert(imageKey != null),
-       assert(hotSpot != null);
-
-  final Object imageKey;
-  final Offset hotSpot;
-
-  @override
-  bool operator ==(dynamic other) {
-    if (identical(other, this))
-      return true;
-    if (other.runtimeType != runtimeType)
-      return false;
-    return other is ImageMouseCursorCacheKey
-        && other.imageKey == imageKey
-        && other.hotSpot == hotSpot;
-  }
-
-  @override
-  int get hashCode => hashValues(imageKey, hotSpot);
-
-  @override
-  String toString() => 'ImageMouseCursorCacheKey(imageKey: $imageKey, hotSpot: $hotSpot)';
 }

@@ -28,11 +28,6 @@ import 'mouse_tracking.dart';
 /// that the program is running on, and is the most common kind of cursor. All
 /// supported system mouse cursors are enumerated in [SystemMouseCursors].
 ///
-/// [ImageMouseCursor] is a cursor that displays an image. Various sources
-/// of the image are supported, such as network, file, assets, memory, etc.
-/// Internally it must be prepared before being activated, which results into a
-/// cached [PreparedImageMouseCursor].
-///
 /// [NoopMouseCursor] is a kind of cursor that does nothing when switched onto.
 /// It is useful in special cases such as a platform view where the mouse
 /// cursor is managed by other means.
