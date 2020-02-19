@@ -755,10 +755,18 @@ class PlatformViewRenderBox extends RenderBox with _PlatformViewGestureMixin {
   @override
   void paint(PaintingContext context, Offset offset) {
     assert(_controller.viewId != null);
+
+
+    final MouseTrackerAnnotation annotation = MouseTrackerAnnotation(
+      onHover: (PointerHoverEvent event) {
+        if (_handlePointerEvent != null)
+          _handlePointerEvent(event);
+      },
+    );
     context.addLayer(PlatformViewLayer(
             rect: offset & size,
             viewId: _controller.viewId,
-            hoverAnnotation: _hoverAnnotation));
+            hoverAnnotation: annotation));
   }
 
   @override

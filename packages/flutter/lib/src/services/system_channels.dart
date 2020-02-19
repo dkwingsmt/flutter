@@ -270,4 +270,17 @@ class SystemChannels {
     'flutter/skia',
     JSONMethodCodec(),
   );
+
+  /// A [MethodChannel] for configuring the Skia graphics library.
+  ///
+  /// The following outgoing methods are defined for this channel (invoked using
+  /// [OptionalMethodChannel.invokeMethod]):
+  ///
+  ///  * `MouseCursor.setCursors`: Request to set the cursors of multiple pointer
+  ///    devices. The argument is a `Map<int, int>` that maps from device to
+  ///    cursor. See [MouseCursors] for a list of system cursors.
+  static const MethodChannel mouseCursor = OptionalMethodChannel(
+    'flutter/mousecursor',
+    StandardMethodCodec(),
+  );
 }

@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import 'dart:async';
 import 'dart:ui' as ui show Image, ImageFilter, TextHeightBehavior;
 
 import 'package:flutter/foundation.dart';
@@ -9,8 +10,10 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 
+import 'binding.dart';
 import 'debug.dart';
 import 'framework.dart';
+import 'image.dart' show createLocalImageConfiguration;
 import 'localizations.dart';
 import 'widget_span.dart';
 
@@ -5867,11 +5870,15 @@ class _PointerListener extends SingleChildRenderObjectWidget {
 ///    have buttons pressed.
 class MouseRegion extends StatefulWidget {
   /// Creates a widget that forwards mouse events to callbacks.
+  ///
+  /// By default, all callbacks are empty, `cursor` is unset, and `opaque` is
+  /// `true`.
   const MouseRegion({
     Key key,
     this.onEnter,
     this.onExit,
     this.onHover,
+    this.cursor,
     this.opaque = true,
     this.child,
   }) : assert(opaque != null),
@@ -6083,6 +6090,8 @@ class MouseRegion extends StatefulWidget {
   ///    this callback is internally implemented, but without the restriction.
   final PointerExitEventListener onExit;
 
+  final MouseCursor cursor;
+
   /// Whether this widget should prevent other [MouseRegion]s visually behind it
   /// from detecting the pointer, thus affecting how their [onHover], [onEnter],
   /// and [onExit] behave.
@@ -6118,11 +6127,185 @@ class MouseRegion extends StatefulWidget {
     if (onHover != null)
       listeners.add('hover');
     properties.add(IterableProperty<String>('listeners', listeners, ifEmpty: '<none>'));
+    properties.add(DiagnosticsProperty<MouseCursor>('cursor', cursor, defaultValue: null));
     properties.add(DiagnosticsProperty<bool>('opaque', opaque, defaultValue: true));
   }
 }
 
+typedef _MouseCursorPreparationListener = void Function(PreparedMouseCursor preparedCursor);
+
+class _SingleFrameImageResolver {
+  _SingleFrameImageResolver(this._stream) : assert(_stream != null) {
+    _stream.addListener(_getListener());
+  }
+
+  Future<ImageInfo> get future => _completer.future;
+
+  final Completer<ImageInfo> _completer = Completer<ImageInfo>();
+  final ImageStream _stream;
+
+  ImageStreamListener _getListener() {
+    return ImageStreamListener(
+      _handleImageFrame,
+      onError: _handleImageError,
+    );
+  }
+
+  bool _firstImageReceived = false;
+  void _handleImageFrame(ImageInfo imageInfo, bool synchronousCall) {
+    if (_firstImageReceived)
+      return;
+    if (imageInfo != null) {
+      _firstImageReceived = true;
+      _completer.complete(imageInfo);
+    }
+  }
+
+  void _handleImageError(dynamic error, StackTrace stackTrace) {
+    if (_firstImageReceived)
+      return;
+    _firstImageReceived = true;
+    _completer.completeError(error, stackTrace);
+  }
+}
+
+class _ImageCursorResolver {
+  _ImageCursorResolver(
+    this._cursor,
+    ImageConfiguration imageConfiguration,
+    this.onResult, {
+    this.onError,
+  }) : assert(_cursor != null),
+       assert(imageConfiguration != null),
+       assert(onResult != null) {
+    _initialize(imageConfiguration);
+  }
+
+  final _MouseCursorPreparationListener onResult;
+  final void Function(dynamic error, StackTrace stackTrace) onError;
+
+  Future<void> _initialize(
+    ImageConfiguration imageConfiguration,
+  ) async {
+    final ImageMouseCursorCacheKey cacheKey = ImageMouseCursorCacheKey(
+      imageKey: await _cursor.image.obtainKey(imageConfiguration),
+      hotSpot: _cursor.hotSpot,
+    );
+    _manager.imageCursorCache.query(cacheKey,
+      ifHit: _onTaskResult,
+      ifPending: (Future<int> task) {
+        task
+          .then(_onTaskResult)
+          .catchError(_onTaskError);
+      },
+      ifMiss: () {
+        return _prepareImage(_cursor.image.resolve(imageConfiguration))
+          .then(_onTaskResult)
+          .catchError(_onTaskError);
+      }
+    );
+  }
+
+  int _onTaskResult(int imageId) {
+    onResult(PreparedImageMouseCursor(imageId: imageId));
+    return imageId;
+  }
+
+  void _onTaskError(dynamic error, StackTrace stackTrace) {
+    onError(error, stackTrace);
+  }
+
+  final ImageMouseCursor _cursor;
+
+  Future<int> _prepareImage(ImageStream stream) {
+    return _SingleFrameImageResolver(stream).future
+      .then((ImageInfo imageInfo) =>
+        MouseCursorController.registerImage(
+          image: imageInfo.image,
+          scale: imageInfo.scale,
+          hotSpot: _cursor.hotSpot,
+        ),
+      );
+  }
+
+  bool _interrupted = false;
+  void dispose() {
+    _interrupted = true;
+  }
+
+  static MouseCursorManager get _manager => GestureBinding.instance.mouseCursorManager;
+}
 class _MouseRegionState extends State<MouseRegion> {
+  PreparedMouseCursor preparedCursor;
+
+  // Non-states:
+
+  _ImageCursorResolver _imageCursorResolver;
+
+  @override
+  void dispose() {
+    _stopResolver();
+    super.dispose();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _updatePreparedCursor();
+  }
+
+  @override
+  void didUpdateWidget(MouseRegion oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.cursor != widget.cursor) {
+      _stopResolver();
+      _updatePreparedCursor();
+    }
+  }
+
+  @override
+  void reassemble() {
+    _updatePreparedCursor(); // in case the cache was flushed
+    super.reassemble();
+  }
+
+  void _stopResolver() {
+    _imageCursorResolver?.dispose();
+    _imageCursorResolver = null;
+  }
+
+  void _updatePreparedCursor() {
+    final MouseCursor newCursor = widget.cursor;
+    if (newCursor == null) {
+      setState(() {
+        preparedCursor = null;
+      });
+      return;
+    }
+    if (newCursor is PreparedMouseCursor) {
+      setState(() {
+        preparedCursor = newCursor;
+      });
+      return;
+    }
+    setState(() {
+      preparedCursor = _manager.defaultCursor;
+    });
+    if (newCursor is ImageMouseCursor) {
+      _imageCursorResolver = _ImageCursorResolver(
+        newCursor,
+        createLocalImageConfiguration(context),
+        (PreparedMouseCursor result) {
+          setState(() {
+            preparedCursor = result;
+          });
+        },
+      );
+      return;
+    }
+    throw UnimplementedError('Unsupported mouse cursor class ${newCursor.runtimeType}');
+  }
+
   void handleExit(PointerExitEvent event) {
     if (widget.onExit != null && mounted)
       widget.onExit(event);
@@ -6136,6 +6319,8 @@ class _MouseRegionState extends State<MouseRegion> {
   Widget build(BuildContext context) {
     return _RawMouseRegion(this);
   }
+
+  static MouseCursorManager get _manager => GestureBinding.instance.mouseCursorManager;
 }
 
 class _RawMouseRegion extends SingleChildRenderObjectWidget {
@@ -6150,6 +6335,7 @@ class _RawMouseRegion extends SingleChildRenderObjectWidget {
       onEnter: widget.onEnter,
       onHover: widget.onHover,
       onExit: owner.getHandleExit(),
+      cursor: owner.preparedCursor,
       opaque: widget.opaque,
     );
   }
@@ -6161,6 +6347,7 @@ class _RawMouseRegion extends SingleChildRenderObjectWidget {
       ..onEnter = widget.onEnter
       ..onHover = widget.onHover
       ..onExit = owner.getHandleExit()
+      ..cursor = owner.preparedCursor
       ..opaque = widget.opaque;
   }
 }
