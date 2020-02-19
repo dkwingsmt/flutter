@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -82,6 +83,8 @@ class _HoverFeedbackState extends State<HoverFeedback> {
 }
 
 void main() {
+  const PreparedMouseCursor testCursor = SystemMouseCursors.grabbing;
+
   testWidgets('detects pointer enter', (WidgetTester tester) async {
     PointerEnterEvent enter;
     PointerHoverEvent move;
@@ -534,6 +537,39 @@ void main() {
     expect(move2, isEmpty);
     expect(enter2, isEmpty);
     expect(exit2, isEmpty);
+  });
+
+  testWidgets('applies mouse cursor', (WidgetTester tester) async {
+    final List<_CursorUpdateDetails> logCursors = <_CursorUpdateDetails>[];
+    _setMockCursorHandlers(logCursors: logCursors);
+    addTearDown(_clearMockCursorHandlers);
+
+    await tester.pumpWidget(_Scaffold(
+      topLeft: MouseRegion(
+        cursor: testCursor,
+        child: Container(width: 10, height: 10),
+      ),
+    ));
+
+    final TestGesture gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    await gesture.addPointer(location: const Offset(100, 100));
+    addTearDown(gesture.removePointer);
+
+    await tester.pump();
+    expect(logCursors, isEmpty);
+    logCursors.clear();
+
+    await gesture.moveTo(const Offset(5, 5));
+    expect(logCursors, const <_CursorUpdateDetails>[
+      _CursorUpdateDetails(device: 1, cursor: testCursor),
+    ]);
+    logCursors.clear();
+
+    await gesture.moveTo(const Offset(100, 100));
+    expect(logCursors, const <_CursorUpdateDetails>[
+      _CursorUpdateDetails(device: 1, cursor: SystemMouseCursors.basic),
+    ]);
+    logCursors.clear();
   });
 
   testWidgets('MouseRegion uses updated callbacks', (WidgetTester tester) async {
@@ -1358,7 +1394,7 @@ void main() {
     expect(logs, <String>['hover2']);
     logs.clear();
 
-    // Compare: It repaints if the MouseRegion is unactivated.
+    // Compare: It repaints if the MouseRegion is deactivated.
     await tester.pumpWidget(_Scaffold(
       topLeft: Container(
         height: 10,
@@ -1418,6 +1454,54 @@ void main() {
     ));
 
     expect(logs, <String>['paint', 'hover-enter']);
+  });
+
+  testWidgets("Changing MouseRegion.cursor is effective and doesn't repaint", (WidgetTester tester) async {
+    final List<_CursorUpdateDetails> logCursors = <_CursorUpdateDetails>[];
+    _setMockCursorHandlers(logCursors: logCursors);
+    addTearDown(_clearMockCursorHandlers);
+
+    final List<String> paintLogs = <String>[];
+
+    final TestGesture gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    await gesture.addPointer(location: const Offset(100, 100));
+    addTearDown(gesture.removePointer);
+
+    final VoidCallback onPaintChild = () { paintLogs.add('paint'); };
+
+    await tester.pumpWidget(_Scaffold(
+      topLeft: Container(
+        height: 10,
+        width: 10,
+        child: MouseRegion(
+          cursor: null,
+          opaque: true,
+          child: CustomPaint(painter: _DelegatedPainter(onPaint: onPaintChild)),
+        ),
+      ),
+    ));
+    expect(paintLogs, <String>['paint']);
+    expect(logCursors, isEmpty);
+    paintLogs.clear();
+    logCursors.clear();
+
+    await tester.pumpWidget(_Scaffold(
+      topLeft: Container(
+        height: 10,
+        width: 10,
+        child: MouseRegion(
+          cursor: testCursor,
+          opaque: true,
+          child: CustomPaint(painter: _DelegatedPainter(onPaint: onPaintChild)),
+        ),
+      ),
+    ));
+
+    await gesture.moveTo(const Offset(5, 5));
+    expect(paintLogs, isEmpty);
+    expect(logCursors, const <_CursorUpdateDetails>[
+      _CursorUpdateDetails(device: 1, cursor: testCursor),
+    ]);
   });
 
   testWidgets("RenderMouseRegion's debugFillProperties when default", (WidgetTester tester) async {
@@ -1562,4 +1646,64 @@ class _ColumnContainer extends StatelessWidget {
       ),
     );
   }
+}
+
+@immutable
+class _CursorUpdateDetails {
+  const _CursorUpdateDetails({@required this.cursor, @required this.device});
+
+  final PreparedMouseCursor cursor;
+  final int device;
+
+  @override
+  bool operator ==(dynamic other) {
+    if (identical(other, this))
+      return true;
+    if (other.runtimeType != runtimeType)
+      return false;
+    return other is _CursorUpdateDetails
+        && other.cursor == cursor
+        && other.device == device;
+  }
+
+  @override
+  int get hashCode => hashValues(runtimeType, cursor, device);
+
+  @override
+  String toString() {
+    return '_CursorUpdateDetails(device: $device, cursor: $cursor)';
+  }
+}
+
+class _TestMouseCursorManager extends MouseCursorManager {
+  _TestMouseCursorManager({
+    this.logCursors,
+  });
+
+  final List<_CursorUpdateDetails> logCursors;
+
+  @override
+  PreparedMouseCursor get defaultCursor => SystemMouseCursors.basic;
+
+  @override
+  Future<void> handleActivateCursor(int device, PreparedMouseCursor cursor) async {
+    logCursors.add(_CursorUpdateDetails(cursor: cursor, device: device));
+  }
+
+  @override
+  Future<void> dispose() async { }
+}
+
+void _setMockCursorHandlers({
+  List<_CursorUpdateDetails> logCursors,
+}) {
+  final MouseTracker mouseTracker = MouseTracker(
+    GestureBinding.instance.pointerRouter,
+    RendererBinding.instance.renderView.hitTestMouseTrackers,
+  );
+  RendererBinding.instance.initMouseTracker(mouseTracker);
+  RendererBinding.instance.initMouseCursorManager(_TestMouseCursorManager(logCursors: logCursors));
+}
+void _clearMockCursorHandlers() {
+  RendererBinding.instance.initMouseTracker();
 }

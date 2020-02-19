@@ -13,6 +13,8 @@ import 'converter.dart';
 import 'debug.dart';
 import 'events.dart';
 import 'hit_test.dart';
+import 'mouse_cursor.dart';
+import 'mouse_tracking.dart';
 import 'pointer_router.dart';
 import 'pointer_signal_resolver.dart';
 
@@ -112,6 +114,17 @@ mixin GestureBinding on BindingBase implements HitTestable, HitTestDispatcher, H
   /// The resolver used for determining which widget handles a pointer
   /// signal event.
   final PointerSignalResolver pointerSignalResolver = PointerSignalResolver();
+
+  /// The object that manages state about currently connected mice, for hover
+  /// notification.
+  MouseTracker get mouseTracker => null;
+
+  /// An object that provides directly operations to the platform on mouse
+  /// cursors.
+  ///
+  /// This object is only to be called by [MouseCursor] classes, and should not
+  /// be directly used by render objects or widgets.
+  MouseCursorManager get mouseCursorManager => null;
 
   /// State for all pointers which are currently down.
   ///

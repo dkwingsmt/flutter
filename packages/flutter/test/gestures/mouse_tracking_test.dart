@@ -64,26 +64,50 @@ void _ensureTestGestureBinding() {
 }
 
 void main() {
-  void _setUpMouseAnnotationFinder(MouseDetectorAnnotationFinder annotationFinder) {
+  void _setUpMouseTracker({
+    MouseDetectorAnnotationFinder annotationFinder,
+    List<_CursorUpdateDetails> logCursors,
+  }) {
     final MouseTracker mouseTracker = MouseTracker(
       GestureBinding.instance.pointerRouter,
       annotationFinder,
     );
     RendererBinding.instance.initMouseTracker(mouseTracker);
+    RendererBinding.instance.initMouseCursorManager(_TestMouseCursorManager(logCursors: logCursors));
   }
 
-  // Set up a trivial test environment that includes one annotation, which adds
-  // the enter, hover, and exit events it received to [logEvents].
-  MouseTrackerAnnotation _setUpWithOneAnnotation({List<PointerEvent> logEvents}) {
+  // System cursors must be constants.
+  const SystemMouseCursor testCursor = SystemMouseCursors.grabbing;
+
+  // Set up a trivial test environment that includes one annotation.
+  // This annotation records the enter, hover, and exit events it receives to
+  // `logEvents`.
+  // This annotation also contains a cursor with a value of `testCursor`.
+  // The mouse tracker records the cursor requests it receives to `logCursors`.
+  MouseTrackerAnnotation _setUpWithOneAnnotation({
+    List<PointerEvent> logEvents,
+    List<_CursorUpdateDetails> logCursors,
+  }) {
     final MouseTrackerAnnotation annotation = MouseTrackerAnnotation(
-      onEnter: (PointerEnterEvent event) => logEvents.add(event),
-      onHover: (PointerHoverEvent event) => logEvents.add(event),
-      onExit: (PointerExitEvent event) => logEvents.add(event),
+      onEnter: (PointerEnterEvent event) {
+        if (logEvents != null)
+          logEvents.add(event);
+      },
+      onHover: (PointerHoverEvent event) {
+        if (logEvents != null)
+          logEvents.add(event);
+      },
+      onExit: (PointerExitEvent event) {
+        if (logEvents != null)
+          logEvents.add(event);
+      },
+      cursor: ValueNotifier<PreparedMouseCursor>(testCursor),
     );
-    _setUpMouseAnnotationFinder(
-      (Offset position) sync* {
+    _setUpMouseTracker(
+      annotationFinder: (Offset position) sync* {
         yield annotation;
       },
+      logCursors: logCursors,
     );
     return annotation;
   }
@@ -109,11 +133,20 @@ void main() {
       annotation2.toString(),
       equals('MouseTrackerAnnotation#${shortHash(annotation2)}(callbacks: <none>)'),
     );
+
+    final MouseTrackerAnnotation annotation3 = MouseTrackerAnnotation(
+      cursor: ValueNotifier<PreparedMouseCursor>(SystemMouseCursors.grabbing),
+    );
+    expect(
+      annotation3.toString(),
+      equals('MouseTrackerAnnotation#${shortHash(annotation3)}(callbacks: <none>, cursor: SystemMouseCursor(grabbing))'),
+    );
   });
 
   test('should detect enter, hover, and exit from Added, Hover, and Removed events', () {
     final List<PointerEvent> events = <PointerEvent>[];
-    _setUpWithOneAnnotation(logEvents: events);
+    final List<_CursorUpdateDetails> logCursors = <_CursorUpdateDetails>[];
+    _setUpWithOneAnnotation(logEvents: events, logCursors: logCursors);
 
     final List<bool> listenerLogs = <bool>[];
     _mouseTracker.addListener(() {
@@ -126,10 +159,15 @@ void main() {
     ui.window.onPointerDataPacket(ui.PointerDataPacket(data: <ui.PointerData>[
       _pointerData(PointerChange.add, const Offset(0.0, 0.0)),
     ]));
+
     expect(events, _equalToEventsOnCriticalFields(<PointerEvent>[
       const PointerEnterEvent(position: Offset(0.0, 0.0)),
     ]));
     expect(listenerLogs, <bool>[true]);
+    expect(logCursors, const <_CursorUpdateDetails>[
+      _CursorUpdateDetails(device: 0, cursor: testCursor),
+    ]);
+    logCursors.clear();
     events.clear();
     listenerLogs.clear();
 
@@ -141,7 +179,8 @@ void main() {
       const PointerHoverEvent(position: Offset(1.0, 101.0)),
     ]));
     expect(_mouseTracker.mouseIsConnected, isTrue);
-    expect(listenerLogs, <bool>[]);
+    expect(logCursors, isEmpty);
+    expect(listenerLogs, isEmpty);
     events.clear();
 
     // Pointer is removed while on the annotation.
@@ -152,6 +191,8 @@ void main() {
       const PointerExitEvent(position: Offset(1.0, 101.0)),
     ]));
     expect(listenerLogs, <bool>[false]);
+    expect(logCursors, isEmpty);
+    logCursors.clear();
     events.clear();
     listenerLogs.clear();
 
@@ -163,6 +204,10 @@ void main() {
       const PointerEnterEvent(position: Offset(0.0, 301.0)),
     ]));
     expect(listenerLogs, <bool>[true]);
+    expect(logCursors, const <_CursorUpdateDetails>[
+      _CursorUpdateDetails(device: 0, cursor: testCursor),
+    ]);
+    logCursors.clear();
     events.clear();
     listenerLogs.clear();
   });
@@ -286,7 +331,7 @@ void main() {
       onHover: (PointerHoverEvent event) => events.add(event),
       onExit: (PointerExitEvent event) => events.add(event),
     );
-    _setUpMouseAnnotationFinder((Offset position) sync* {
+    _setUpMouseTracker(annotationFinder: (Offset position) sync* {
       if (isInHitRegion) {
         yield annotation;
       }
@@ -334,7 +379,7 @@ void main() {
       onHover: (PointerHoverEvent event) => events.add(event),
       onExit: (PointerExitEvent event) => events.add(event),
     );
-    _setUpMouseAnnotationFinder((Offset position) sync* {
+    _setUpMouseTracker(annotationFinder: (Offset position) sync* {
       if (isInHitRegion) {
         yield annotation;
       }
@@ -383,7 +428,7 @@ void main() {
       onHover: (PointerHoverEvent event) => events.add(event),
       onExit: (PointerExitEvent event) => events.add(event),
     );
-    _setUpMouseAnnotationFinder((Offset position) sync* {
+    _setUpMouseTracker(annotationFinder: (Offset position) sync* {
       if (isInHitRegion) {
         yield annotation;
       }
@@ -421,7 +466,7 @@ void main() {
       onHover: (PointerHoverEvent event) => events.add(event),
       onExit: (PointerExitEvent event) => events.add(event),
     );
-    _setUpMouseAnnotationFinder((Offset position) sync* {
+    _setUpMouseTracker(annotationFinder: (Offset position) sync* {
       if (isInHitRegion) {
         yield annotation;
       }
@@ -459,7 +504,7 @@ void main() {
   });
 
   test('should not schedule postframe callbacks when no mouse is connected', () {
-    _setUpMouseAnnotationFinder((Offset position) sync* {
+    _setUpMouseTracker(annotationFinder: (Offset position) sync* {
     });
 
     // Connect a touch device, which should not be recognized by MouseTracker
@@ -480,7 +525,7 @@ void main() {
     final MouseTrackerAnnotation annotation2 = MouseTrackerAnnotation(
       onExit: (PointerExitEvent event) {}
     );
-    _setUpMouseAnnotationFinder((Offset position) sync* {
+    _setUpMouseTracker(annotationFinder: (Offset position) sync* {
       if (isInHitRegionOne)
         yield annotation1;
       else if (isInHitRegionTwo)
@@ -489,7 +534,6 @@ void main() {
 
     isInHitRegionOne = false;
     isInHitRegionTwo = true;
-
     ui.window.onPointerDataPacket(ui.PointerDataPacket(data: <ui.PointerData>[
       _pointerData(PointerChange.add, const Offset(0.0, 101.0)),
       _pointerData(PointerChange.hover, const Offset(1.0, 101.0)),
@@ -520,7 +564,7 @@ void main() {
       onExit: (PointerExitEvent event) => logs.add('exitB'),
       onHover: (PointerHoverEvent event) => logs.add('hoverB'),
     );
-    _setUpMouseAnnotationFinder((Offset position) sync* {
+    _setUpMouseTracker(annotationFinder: (Offset position) sync* {
       // Children's annotations come before parents'.
       if (isInB) {
         yield annotationB;
@@ -573,7 +617,7 @@ void main() {
       onExit: (PointerExitEvent event) => logs.add('exitB'),
       onHover: (PointerHoverEvent event) => logs.add('hoverB'),
     );
-    _setUpMouseAnnotationFinder((Offset position) sync* {
+    _setUpMouseTracker(annotationFinder: (Offset position) sync* {
       if (isInA) {
         yield annotationA;
       } else if (isInB) {
@@ -607,6 +651,7 @@ void main() {
     ]));
     expect(logs, <String>['exitB', 'enterA', 'hoverA']);
   });
+
 }
 
 ui.PointerData _pointerData(
@@ -765,4 +810,51 @@ class _EventListCriticalFieldsMatcher extends Matcher {
 
 Matcher _equalToEventsOnCriticalFields(List<PointerEvent> source) {
   return _EventListCriticalFieldsMatcher(source);
+}
+
+@immutable
+class _CursorUpdateDetails {
+  const _CursorUpdateDetails({@required this.cursor, @required this.device});
+
+  final PreparedMouseCursor cursor;
+  final int device;
+
+  @override
+  bool operator ==(dynamic other) {
+    if (identical(other, this))
+      return true;
+    if (other.runtimeType != runtimeType)
+      return false;
+    return other is _CursorUpdateDetails
+        && other.cursor == cursor
+        && other.device == device;
+  }
+
+  @override
+  int get hashCode => hashValues(runtimeType, cursor, device);
+
+  @override
+  String toString() {
+    return '_CursorUpdateDetails(device: $device, cursor: $cursor)';
+  }
+}
+
+class _TestMouseCursorManager extends MouseCursorManager {
+  _TestMouseCursorManager({
+    this.logCursors,
+  });
+
+  final List<_CursorUpdateDetails> logCursors;
+
+  @override
+  PreparedMouseCursor get defaultCursor => SystemMouseCursors.basic;
+
+  @override
+  Future<void> handleActivateCursor(int device, PreparedMouseCursor cursor) async {
+    if (logCursors != null)
+      logCursors.add(_CursorUpdateDetails(cursor: cursor, device: device));
+  }
+
+  @override
+  Future<void> dispose() async { }
 }

@@ -14,6 +14,7 @@ import 'package:flutter/services.dart';
 
 import 'box.dart';
 import 'debug.dart';
+import 'mouse_cursor.dart';
 import 'object.dart';
 import 'view.dart';
 
@@ -44,6 +45,7 @@ mixin RendererBinding on BindingBase, ServicesBinding, SchedulerBinding, Gesture
     assert(renderView != null);
     addPersistentFrameCallback(_handlePersistentFrameCallback);
     initMouseTracker();
+    initMouseCursorManager();
   }
 
   /// The current [RendererBinding], if one has been created.
@@ -149,8 +151,15 @@ mixin RendererBinding on BindingBase, ServicesBinding, SchedulerBinding, Gesture
 
   /// The object that manages state about currently connected mice, for hover
   /// notification.
+  @override
   MouseTracker get mouseTracker => _mouseTracker;
   MouseTracker _mouseTracker;
+
+  /// The object that manages state about currently connected mice, for hover
+  /// notification.
+  @override
+  MouseCursorManager get mouseCursorManager => _mouseCursorManager;
+  MouseCursorManager _mouseCursorManager;
 
   /// The render tree's owner, which maintains dirty state for layout,
   /// composite, paint, and accessibility semantics
@@ -245,7 +254,19 @@ mixin RendererBinding on BindingBase, ServicesBinding, SchedulerBinding, Gesture
   @visibleForTesting
   void initMouseTracker([MouseTracker tracker]) {
     _mouseTracker?.dispose();
-    _mouseTracker = tracker ?? MouseTracker(pointerRouter, renderView.hitTestMouseTrackers);
+    _mouseTracker = tracker ?? MouseTracker(
+      pointerRouter,
+      renderView.hitTestMouseTrackers,
+    )..addUpdateListener((MouseTrackerUpdateDetails details) {
+      // Proxy this callback because _mouseCursorManager might be changed.
+      _mouseCursorManager.updateFromMouseTracker(details);
+    });
+  }
+
+  @visibleForTesting
+  void initMouseCursorManager([MouseCursorManager manager]) {
+    _mouseCursorManager?.dispose();
+    _mouseCursorManager = manager ?? StandardMouseCursorManager();
   }
 
   void _handleSemanticsEnabledChanged() {

@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import 'dart:async';
 import 'dart:ui' as ui show Image, ImageFilter, TextHeightBehavior;
 
 import 'package:flutter/foundation.dart';
@@ -9,8 +10,10 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 
+import 'binding.dart';
 import 'debug.dart';
 import 'framework.dart';
+import 'image.dart' show createLocalImageConfiguration;
 import 'localizations.dart';
 import 'widget_span.dart';
 
@@ -5867,11 +5870,15 @@ class _PointerListener extends SingleChildRenderObjectWidget {
 ///    have buttons pressed.
 class MouseRegion extends StatefulWidget {
   /// Creates a widget that forwards mouse events to callbacks.
+  ///
+  /// By default, all callbacks are empty, `cursor` is unset, and `opaque` is
+  /// `true`.
   const MouseRegion({
     Key key,
     this.onEnter,
     this.onExit,
     this.onHover,
+    this.cursor,
     this.opaque = true,
     this.child,
   }) : assert(opaque != null),
@@ -6083,6 +6090,8 @@ class MouseRegion extends StatefulWidget {
   ///    this callback is internally implemented, but without the restriction.
   final PointerExitEventListener onExit;
 
+  final MouseCursor cursor;
+
   /// Whether this widget should prevent other [MouseRegion]s visually behind it
   /// from detecting the pointer, thus affecting how their [onHover], [onEnter],
   /// and [onExit] behave.
@@ -6118,6 +6127,7 @@ class MouseRegion extends StatefulWidget {
     if (onHover != null)
       listeners.add('hover');
     properties.add(IterableProperty<String>('listeners', listeners, ifEmpty: '<none>'));
+    properties.add(DiagnosticsProperty<MouseCursor>('cursor', cursor, defaultValue: null));
     properties.add(DiagnosticsProperty<bool>('opaque', opaque, defaultValue: true));
   }
 }
@@ -6126,6 +6136,13 @@ class _MouseRegionState extends State<MouseRegion> {
   void handleExit(PointerExitEvent event) {
     if (widget.onExit != null && mounted)
       widget.onExit(event);
+  }
+
+  PreparedMouseCursor get cursor {
+    if (widget.cursor == null)
+      return null;
+    assert(widget.cursor is PreparedMouseCursor);
+    return widget.cursor as PreparedMouseCursor;
   }
 
   PointerExitEventListener getHandleExit() {
@@ -6150,6 +6167,7 @@ class _RawMouseRegion extends SingleChildRenderObjectWidget {
       onEnter: widget.onEnter,
       onHover: widget.onHover,
       onExit: owner.getHandleExit(),
+      cursor: owner.cursor,
       opaque: widget.opaque,
     );
   }
@@ -6161,6 +6179,7 @@ class _RawMouseRegion extends SingleChildRenderObjectWidget {
       ..onEnter = widget.onEnter
       ..onHover = widget.onHover
       ..onExit = owner.getHandleExit()
+      ..cursor = owner.cursor
       ..opaque = widget.opaque;
   }
 }

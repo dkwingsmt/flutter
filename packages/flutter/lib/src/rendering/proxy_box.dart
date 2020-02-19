@@ -11,6 +11,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/painting.dart';
 import 'package:flutter/semantics.dart';
+import 'package:flutter/services.dart';
 
 import 'package:vector_math/vector_math_64.dart';
 
@@ -2667,12 +2668,14 @@ class RenderMouseRegion extends RenderProxyBox {
     PointerEnterEventListener onEnter,
     PointerHoverEventListener onHover,
     PointerExitEventListener onExit,
+    PreparedMouseCursor cursor,
     bool opaque = true,
     RenderBox child,
   }) : assert(opaque != null),
        _onEnter = onEnter,
        _onHover = onHover,
        _onExit = onExit,
+       _cursorNotifier = ValueNotifier<PreparedMouseCursor>(cursor),
        _opaque = opaque,
        _annotationIsActive = false,
        super(child) {
@@ -2680,6 +2683,7 @@ class RenderMouseRegion extends RenderProxyBox {
       onEnter: _handleEnter,
       onHover: _handleHover,
       onExit: _handleExit,
+      cursor: _cursorNotifier,
     );
   }
 
@@ -2765,10 +2769,34 @@ class RenderMouseRegion extends RenderProxyBox {
   }
 
   // Object used for annotation of the layer used for hover hit detection.
+  //
+  // This member is actually final. Don't reassign throughout the lifecycle of
+  // the render object.
   MouseTrackerAnnotation _hoverAnnotation;
 
-  /// Object used for annotation of the layer used for hover hit detection.
+  /// The mouse cursor for a pointer if it enters or is hovering this object.
   ///
+  /// This cursor will be set to a mouse pointer if this object is the
+  /// front-most object that contains the pointer, taking opacity into account.
+  ///
+  /// It defaults to `null`, which means the choice is deferred to the next
+  /// [RenderMouseRegion] behind it that is reachable by the annotation search.
+  ///
+  /// See also:
+  ///
+  ///  * [MouseCursors], which is a collection of system cursors of all
+  ///    platforms.
+  ///  * [Layer.findAnnotations], which describes the annotation searching
+  ///    algorithm.
+  PreparedMouseCursor get cursor => _cursorNotifier.value;
+  set cursor(PreparedMouseCursor value) {
+    if (_cursorNotifier.value != value) {
+      _cursorNotifier.value = value;
+      _markPropertyUpdated(mustRepaint: false);
+    }
+  }
+  final ValueNotifier<PreparedMouseCursor> _cursorNotifier;
+
   /// This is only public to allow for testing of Listener widgets. Do not call
   /// in other contexts.
   @visibleForTesting
@@ -2789,6 +2817,7 @@ class RenderMouseRegion extends RenderProxyBox {
         _onEnter != null ||
         _onHover != null ||
         _onExit != null ||
+        cursor != null ||
         opaque
       ) && RendererBinding.instance.mouseTracker.mouseIsConnected;
     _setAnnotationIsActive(newAnnotationIsActive);
@@ -2796,6 +2825,7 @@ class RenderMouseRegion extends RenderProxyBox {
       markNeedsPaint();
   }
 
+  bool _annotationIsActive = false;
   void _setAnnotationIsActive(bool value) {
     final bool annotationWasActive = _annotationIsActive;
     _annotationIsActive = value;
@@ -2822,8 +2852,6 @@ class RenderMouseRegion extends RenderProxyBox {
     RendererBinding.instance.mouseTracker.removeListener(_handleUpdatedMouseIsConnected);
     super.detach();
   }
-
-  bool _annotationIsActive;
 
   @override
   bool get needsCompositing => super.needsCompositing || _annotationIsActive;
@@ -2861,6 +2889,7 @@ class RenderMouseRegion extends RenderProxyBox {
       },
       ifEmpty: '<none>',
     ));
+    properties.add(DiagnosticsProperty<MouseCursor>('cursor', cursor, defaultValue: null));
     properties.add(DiagnosticsProperty<bool>('opaque', opaque, defaultValue: true));
   }
 }
