@@ -20,6 +20,12 @@ import 'view.dart';
 
 export 'package:flutter/gestures.dart' show HitTestResult;
 
+class _StandardMouseTracker extends MouseTracker
+    with MouseTrackerCursorMixin, StandardMouseTrackerCursorMixin {
+  _StandardMouseTracker(PointerRouter router, MouseDetectorAnnotationFinder annotationFinder)
+    : super(router, annotationFinder);
+}
+
 // Examples can assume:
 // dynamic context;
 
@@ -45,7 +51,6 @@ mixin RendererBinding on BindingBase, ServicesBinding, SchedulerBinding, Gesture
     assert(renderView != null);
     addPersistentFrameCallback(_handlePersistentFrameCallback);
     initMouseTracker();
-    initMouseCursorManager();
   }
 
   /// The current [RendererBinding], if one has been created.
@@ -155,12 +160,6 @@ mixin RendererBinding on BindingBase, ServicesBinding, SchedulerBinding, Gesture
   MouseTracker get mouseTracker => _mouseTracker;
   MouseTracker _mouseTracker;
 
-  /// The object that manages state about currently connected mice, for hover
-  /// notification.
-  @override
-  MouseCursorManager get mouseCursorManager => _mouseCursorManager;
-  MouseCursorManager _mouseCursorManager;
-
   /// The render tree's owner, which maintains dirty state for layout,
   /// composite, paint, and accessibility semantics
   PipelineOwner get pipelineOwner => _pipelineOwner;
@@ -254,19 +253,10 @@ mixin RendererBinding on BindingBase, ServicesBinding, SchedulerBinding, Gesture
   @visibleForTesting
   void initMouseTracker([MouseTracker tracker]) {
     _mouseTracker?.dispose();
-    _mouseTracker = tracker ?? MouseTracker(
+    _mouseTracker = tracker ?? _StandardMouseTracker(
       pointerRouter,
       renderView.hitTestMouseTrackers,
-    )..addUpdateListener((MouseTrackerUpdateDetails details) {
-      // Proxy this callback because _mouseCursorManager might be changed.
-      _mouseCursorManager.updateFromMouseTracker(details);
-    });
-  }
-
-  @visibleForTesting
-  void initMouseCursorManager([MouseCursorManager manager]) {
-    _mouseCursorManager?.dispose();
-    _mouseCursorManager = manager ?? StandardMouseCursorManager();
+    );
   }
 
   void _handleSemanticsEnabledChanged() {

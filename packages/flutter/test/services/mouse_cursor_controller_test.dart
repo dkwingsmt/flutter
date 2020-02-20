@@ -3,10 +3,7 @@
 // found in the LICENSE file.
 
 import 'package:flutter/services.dart';
-import 'package:flutter/gestures.dart';
 import 'package:flutter_test/flutter_test.dart';
-
-const String _kTestChannel = 'test';
 
 void main() {
   // test('Should works on platforms that has not implemented ', () async {
@@ -41,13 +38,16 @@ void main() {
     mockChannel.setMockMethodCallHandler((MethodCall call) async {
       logs.add(call);
       throw PlatformException(
-        code: UnsupportedFeature.kErrorCode,
+        code: MouseCursorController.kUnsupportedFeatureCode,
         message: 'mock details',
       );
     });
     await expectLater(
       MouseCursorController.activateShape(device: 11, shape: 101),
-      throwsA(_UnsupportedFeatureMatcher(UnsupportedFeature('mock details'))),
+      throwsA(_UnsupportedFeatureMatcher(PlatformException(
+        code: MouseCursorController.kUnsupportedFeatureCode,
+        message: 'mock details',
+      ))),
     );
     expectMethodCallsEquals(logs, const <MethodCall>[
       MethodCall('activateShape', <String, dynamic>{'device': 11, 'shape': 101}),
@@ -82,11 +82,14 @@ void expectMethodCallsEquals(dynamic subject, List<MethodCall> target) {
 class _UnsupportedFeatureMatcher extends Matcher {
   _UnsupportedFeatureMatcher(this._expected);
 
-  final UnsupportedFeature _expected;
+  final PlatformException _expected;
+
+  static String get expectedCode => MouseCursorController.kUnsupportedFeatureCode;
 
   @override
   bool matches(dynamic untypedItem, Map<dynamic, dynamic> matchState) {
-    return untypedItem is UnsupportedFeature
+    return untypedItem is PlatformException
+        && untypedItem.code == expectedCode
         && untypedItem.message == _expected.message
         && untypedItem.details == _expected.details;
   }
@@ -104,12 +107,15 @@ class _UnsupportedFeatureMatcher extends Matcher {
     Map<dynamic, dynamic> matchState,
     bool verbose,
   ) {
-    if (untypedItem is! UnsupportedFeature) {
+    if (untypedItem is! PlatformException) {
       return mismatchDescription
-        .add('is type ${untypedItem.runtimeType} instead of UnsupportedFeature');
+        .add('is type ${untypedItem.runtimeType} instead of PlatformException');
     }
-    final UnsupportedFeature item = untypedItem as UnsupportedFeature;
-    if (item.message != _expected.message) {
+    final PlatformException item = untypedItem as PlatformException;
+    if (item.code != expectedCode) {
+      return mismatchDescription
+        .add('has code ${item.code} instead of $expectedCode');
+    } else if (item.message != _expected.message) {
       return mismatchDescription
         .add('has message ${item.message} instead of ${_expected.message}');
     } else if (item.details != _expected.details) {

@@ -1675,10 +1675,12 @@ class _CursorUpdateDetails {
   }
 }
 
-class _TestMouseCursorManager extends MouseCursorManager {
-  _TestMouseCursorManager({
+class _TestMouseTracker extends MouseTracker with MouseTrackerCursorMixin {
+  _TestMouseTracker(
+    PointerRouter router,
+    MouseDetectorAnnotationFinder annotationFinder, {
     this.logCursors,
-  });
+  }) : super(router, annotationFinder);
 
   final List<_CursorUpdateDetails> logCursors;
 
@@ -1687,22 +1689,20 @@ class _TestMouseCursorManager extends MouseCursorManager {
 
   @override
   Future<void> handleActivateCursor(int device, PreparedMouseCursor cursor) async {
-    logCursors.add(_CursorUpdateDetails(cursor: cursor, device: device));
+    if (logCursors != null)
+      logCursors.add(_CursorUpdateDetails(cursor: cursor, device: device));
   }
-
-  @override
-  Future<void> dispose() async { }
 }
 
 void _setMockCursorHandlers({
   List<_CursorUpdateDetails> logCursors,
 }) {
-  final MouseTracker mouseTracker = MouseTracker(
+  final MouseTracker mouseTracker = _TestMouseTracker(
     GestureBinding.instance.pointerRouter,
     RendererBinding.instance.renderView.hitTestMouseTrackers,
+    logCursors: logCursors,
   );
   RendererBinding.instance.initMouseTracker(mouseTracker);
-  RendererBinding.instance.initMouseCursorManager(_TestMouseCursorManager(logCursors: logCursors));
 }
 void _clearMockCursorHandlers() {
   RendererBinding.instance.initMouseTracker();

@@ -6,13 +6,19 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 
-/// A mouse cursor that does when activated.
+/// A mouse cursor that does nothing when activated.
 ///
-/// This class is used as [SystemMouseCursors.releaseControl], which tells
-/// more about its usage.
+/// An instance of this class is accessible at
+/// [SystemMouseCursors.releaseControl], which also introduces its usage.
+/// Directly instantiating this class is unnecessary, since it's not
+/// configurable.
 class NoopMouseCursor extends PreparedMouseCursor {
-  /// Create a [NoopMouseCursor].
-  const NoopMouseCursor();
+  // Application code shouldn't directly instantiate this class, since its only
+  // instance is accessible at [SystemMouseCursors.releaseControl].
+  const NoopMouseCursor._();
+
+  @override
+  String get debugDescription => '';
 }
 
 /// A mouse cursor that comes with the system that the program is running on.
@@ -20,33 +26,37 @@ class NoopMouseCursor extends PreparedMouseCursor {
 /// System cursors are the most commonly used cursors, since they are avaiable
 /// without external resources, and matches the experience of native apps.
 /// Examples of system cursors are a pointing arrow, a pointing hand, a double
-/// arrow for resizing, or a text I-beam, etc. [SystemMouseCursors] enumerates
-/// the complete set of system cursors supported by Flutter.
+/// arrow for resizing, or a text I-beam, etc.
 ///
-/// Same or similar system cursors from each platform are grouped under the same
-/// name, and assigned with a constant integer [shape]. Since every platform
-/// provides a different set of system cursors, multiple [shape]s might refer to
-/// the same system cursor on some platforms.
+/// [SystemMouseCursors] enumerates the complete set of system cursors supported
+/// by Flutter, which are hard-coded in the platform engine. Therefore, manually
+/// instantiating this class is neither useful nor supported.
 ///
-/// The exact value of a [shape] is intentionally random, and its interpretation
-/// (i.e. corresponding system cursor) is hard-coded in the platform engine.
-/// Manually instantiating this class is meaningless since all supported shapes
-/// have been enumerated in [SystemMouseCursors].
+/// Same or similar system cursors from each platform are mapped onto the same
+/// instance in [SystemMouseCursors], and assigned with a constant integer
+/// [shape]. Since the set of system cursors supported by each platform varies,
+/// multiple instances can be mapped to the same system cursor. The exact value
+/// of a [shape] is intentionally random.
 class SystemMouseCursor extends PreparedMouseCursor {
   // Application code shouldn't directly instantiate system mouse cursors, since
   // the supported system cursors are enumerated in [SystemMouseCursors].
   const SystemMouseCursor._({
     @required this.shape,
-    @required String debugDescription,
+    @required this.debugDescription,
   }) : assert(shape != null),
-       assert(debugDescription != null),
-       super(debugDescription: debugDescription);
+       assert(debugDescription != null);
 
   /// Identifies the kind of cursor across platforms.
   ///
-  /// The exact value of [shape] is intentionally random and meaningless, and
-  /// its concrete implementation is hard-coded in the platform engine.
+  /// The exact value of a [shape] is intentionally random, and its
+  /// interpretation (i.e. corresponding system cursor) is hard-coded in the
+  /// platform engine.
+  ///
+  /// See the documentation of [SystemMouseCursor] for introduction.
   final int shape;
+
+  @override
+  final String debugDescription;
 
   @override
   bool operator ==(dynamic other) {
@@ -62,16 +72,11 @@ class SystemMouseCursor extends PreparedMouseCursor {
   @override
   void debugFillProperties(DiagnosticPropertiesBuilder properties) {
     super.debugFillProperties(properties);
-    properties.add(IntProperty('shape', shape));
+    properties.add(IntProperty('shape', shape, level: DiagnosticLevel.debug));
   }
 }
 
-class StandardMouseCursorManager extends MouseCursorManager {
-  StandardMouseCursorManager();
-
-  @override
-  Future<void> dispose() async { }
-
+mixin StandardMouseTrackerCursorMixin on MouseTrackerCursorMixin {
   @override
   PreparedMouseCursor get defaultCursor => SystemMouseCursors.basic;
 
@@ -111,7 +116,7 @@ class SystemMouseCursors {
   ///
   /// This value is typically used on a platform view or other layers that
   /// manages the cursor by itself.
-  static const NoopMouseCursor releaseControl = NoopMouseCursor();
+  static const NoopMouseCursor releaseControl = NoopMouseCursor._();
 
   // The shape values are chosen as the first 6 bytes of the MD5 hash of the
   // cursor's name at the time of creation. The reason for the 6-byte limit

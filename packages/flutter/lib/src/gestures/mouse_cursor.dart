@@ -20,17 +20,23 @@ import 'mouse_tracking.dart';
 /// Internally, when the mouse pointer moves, it finds the front-most region
 /// assigned with a mouse cursor, and, if the cursor for this pointer changes,
 /// activates the cursor based on its type. If no cursors are assigned to
-/// a position, it defaults to [SystemMouseCursors.basic].
+/// a position, it defaults to [MouseTrackerCursorMixin.defaultCursor], which
+/// is typically [SystemMouseCursors.basic].
+///
+/// A [MouseCursor] object may contain the full resources that are ready to be
+/// consumed by the system (in which case it should subclass
+/// [PreparedMouseCursor]), or might contain a specification and needs more work
+/// to be converted to resources.
 ///
 /// ## Cursor classes
 ///
-/// [SystemMouseCursor] is a cursor that is natively supported by the platform
+/// [SystemMouseCursor] are cursors that are natively supported by the platform
 /// that the program is running on, and is the most common kind of cursor. All
 /// supported system mouse cursors are enumerated in [SystemMouseCursors].
 ///
-/// [NoopMouseCursor] is a kind of cursor that does nothing when switched onto.
-/// It is useful in special cases such as a platform view where the mouse
-/// cursor is managed by other means.
+/// [NoopMouseCursor] are cursors that do nothing when switched onto. It is
+/// useful in special cases such as a platform view where the mouse cursor is
+/// managed by other means.
 ///
 /// ## Using cursors
 ///
@@ -40,7 +46,7 @@ import 'mouse_tracking.dart';
 /// {@tool snippet --template=stateless_widget_material}
 /// This sample creates a rectangular region that is wrapped by a [MouseRegion]
 /// with a system mouse cursor. The mouse pointer becomes an I-beam when
-/// hovering on it.
+/// hovering the region.
 ///
 /// ```dart imports
 /// import 'package:flutter/widgets.dart';
@@ -71,12 +77,14 @@ import 'mouse_tracking.dart';
 ///
 /// ## Related classes
 ///
-/// [MouseCursorManager] is an class that manages the states, and dispatches
+/// The following classes are designed to be created and used by the framework,
+/// therefore should not be directly used by widgets.
+///
+/// [MouseTrackerCursorMixin] is a class that manages states, and dispatches
 /// specific operations based on general mouse device updates.
 ///
 /// [MouseCursorController] implements low-level imperative control by directly
-/// talking to the platform. This class is designed to be created and used by
-/// the framework, therefore should not be directly used by widgets.
+/// talking to the platform.
 ///
 /// See also:
 ///
@@ -88,22 +96,41 @@ import 'mouse_tracking.dart';
 ///  * [NoopMouseCursors], which is a special type of mouse cursor that does
 ///    nothing.
 @immutable
-class MouseCursor extends Diagnosticable {
-  const MouseCursor({this.debugDescription});
+abstract class MouseCursor extends Diagnosticable {
+  /// Abstract const constructor. This constructor enables subclasses to provide
+  /// const constructors so that they can be used in const expressions.
+  const MouseCursor();
 
-  final String debugDescription;
+  /// A very short pretty description of the mouse cursor.
+  ///
+  /// The [debugDescription] shoule be a few words that can differentiate
+  /// instances of a class to make debug information more readable. For example,
+  /// a [SystemMouseCursor] class with description "drag" will be printed as
+  /// "SystemMouseCursor(drag)".
+  ///
+  /// The [debugDescription] should not be null, but can be an empty string,
+  /// which means the class is not configurable.
+  String get debugDescription;
 
   @override
   String toString({DiagnosticLevel minLevel = DiagnosticLevel.info}) {
-    if (debugDescription != null)
+    final String debugDescription = this.debugDescription;
+    if (minLevel.index >= DiagnosticLevel.info.index && debugDescription != null)
       return '$runtimeType($debugDescription)';
     return super.toString(minLevel: minLevel);
   }
 }
 
-class PreparedMouseCursor extends MouseCursor {
-  const PreparedMouseCursor({String debugDescription})
-    : super(debugDescription: debugDescription);
+/// An interface for mouse cursors that have all resources prepared and ready to
+/// be sent to the system.
+///
+/// Although [PreparedMouseCursor] adds no changes on top of [MouseCursor], this
+/// class is designed to prevent unprepared cursor types from methods that
+/// directly talk to the system.
+abstract class PreparedMouseCursor extends MouseCursor {
+  /// Abstract const constructor. This constructor enables subclasses to provide
+  /// const constructors so that they can be used in const expressions.
+  const PreparedMouseCursor();
 }
 
 class _DeviceState {
@@ -111,11 +138,8 @@ class _DeviceState {
   VoidCallback onCursorChange;
 }
 
-/// A manager that maintains the states related to mouse cursor.
-///
-/// This class is an internal class used by the framework. Widgets that want to
-/// set cursors should not directly call this class, instead should assign
-/// [MouseCursor]s to the intended regions using [MouseRegion] or related tools.
+/// A mixin for [MouseTracker] to allow maintaining states and handling changes
+/// related to mouse cursor.
 ///
 /// See also:
 ///
@@ -124,15 +148,7 @@ class _DeviceState {
 ///  * [MouseRegion], which is the idiomatic way of assigning mouse cursors
 ///    to regions.
 ///  * [MouseTracker], which uses this class.
-///  * [StandardMouseCursorManager], which provides the standard implementation
-///    by talking to the platform with a method channel, and is used by
-///    [MouseTracker].
-abstract class MouseCursorManager {
-  /// Create an instance of this class.
-  MouseCursorManager();
-
-  Future<void> dispose();
-
+mixin MouseTrackerCursorMixin on MouseTracker {
   final Map<int, _DeviceState> _deviceStates = <int, _DeviceState>{};
 
   // Find the mouse cursor.
@@ -152,11 +168,17 @@ abstract class MouseCursorManager {
   @protected
   Future<void> handleActivateCursor(int device, PreparedMouseCursor cursor);
 
-  /// Called when a mouse device has a change in status that might affect
-  /// its cursor.
-  ///
-  /// This method is called by [MouseTracker].
-  void updateFromMouseTracker(MouseTrackerUpdateDetails details) {
+  @override
+  void handleDeviceUpdate(MouseTrackerUpdateDetails details) {
+    super.handleDeviceUpdate(details);
+    _handleDeviceUpdateMouseCursor(details);
+  }
+
+  // Called when a mouse device has a change in status that might affect
+  // its cursor.
+  //
+  // This method is called by [MouseTracker].
+  void _handleDeviceUpdateMouseCursor(MouseTrackerUpdateDetails details) {
     final int device = details.device;
 
     if (details.triggeringEvent is PointerRemovedEvent) {

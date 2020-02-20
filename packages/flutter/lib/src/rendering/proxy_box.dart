@@ -2777,15 +2777,15 @@ class RenderMouseRegion extends RenderProxyBox {
   /// The mouse cursor for a pointer if it enters or is hovering this object.
   ///
   /// This cursor will be set to a mouse pointer if this object is the
-  /// front-most object that contains the pointer, taking opacity into account.
+  /// front-most object that contains the pointer.
   ///
-  /// It defaults to `null`, which means the choice is deferred to the next
-  /// [RenderMouseRegion] behind it that is reachable by the annotation search.
+  /// This defaults to null, which means the choice is deferred to the next
+  /// object behind this one with a non-null [cursor], or
+  /// [MouseTrackerCursorMixin.defaultCursor] if it can't find any.
   ///
   /// See also:
   ///
-  ///  * [MouseCursors], which is a collection of system cursors of all
-  ///    platforms.
+  ///  * [MouseCursor], which introduces the mouse cursors.
   ///  * [Layer.findAnnotations], which describes the annotation searching
   ///    algorithm.
   PreparedMouseCursor get cursor => _cursorNotifier.value;

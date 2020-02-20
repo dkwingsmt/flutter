@@ -9,32 +9,6 @@ import 'message_codec.dart';
 import 'platform_channel.dart';
 import 'system_channels.dart';
 
-class UnsupportedFeature extends Error implements UnsupportedError {
-  UnsupportedFeature(this.message, [this.details]);
-
-  final String message;
-
-  final dynamic details;
-
-  @override
-  String toString() {
-    return message != null
-      ? '$runtimeType: $message'
-      : '$runtimeType';
-  }
-
-  static const String kErrorCode = 'unsupported';
-}
-
-bool _convertToUnsupportedError(Object e) {
-  final PlatformException error = e as PlatformException;
-  throw UnsupportedFeature(error.message, error.details);
-}
-
-bool _ifUnsupported(Object e) {
-  return e is PlatformException && e.code == UnsupportedFeature.kErrorCode;
-}
-
 /// Controls specific aspects of the mouse cursor subsystem.
 ///
 /// This class is not typically used by widgets. To declare regions of mouse
@@ -52,7 +26,7 @@ class MouseCursorController {
   /// All arguments are required, and must not be null.
   ///
   /// {@template flutter.mouseCursorController.unsupportedFeature}
-  /// The returned future completes with an [UnsupportedFeature] if the platform
+  /// The returned future completes with an [UnsupportedCursorFeature] if the platform
   /// supports mouse cursor, but doesn't support the feature requested in this
   /// call, thus requesting fallback. It might also completes with other
   /// platform errors if any occurs.
@@ -74,6 +48,24 @@ class MouseCursorController {
         'device': device,
         'shape': shape,
       },
-    ).catchError(_convertToUnsupportedError, test: _ifUnsupported);
+    );
+  }
+
+  /// The code of [PlatformException]s that are caused by unsupported
+  /// features.
+  ///
+  /// See also:
+  ///
+  ///  * [isUnsupportedFeature], which introduces the situation of this code,
+  ///    and detects this type of exceptions.
+  static const String kUnsupportedFeatureCode = 'unsupported';
+
+  /// Whether the thrown error indicates that a feature is not supported by the
+  /// platform, and a fallback is requested.
+  ///
+  /// This kind of error is thrown when the platform supports mouse cursor, but
+  /// is unable to fully fulfill the request.
+  static bool isUnsupportedFeature(Object e) {
+    return e is PlatformException && e.code == kUnsupportedFeatureCode;
   }
 }

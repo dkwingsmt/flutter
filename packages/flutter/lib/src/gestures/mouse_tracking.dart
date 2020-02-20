@@ -111,7 +111,7 @@ class MouseTrackerAnnotation extends Diagnosticable {
       },
       ifEmpty: '<none>',
     ));
-    properties.add(DiagnosticsProperty<MouseCursor>('cursor', cursor?.value, defaultValue: null));
+    properties.add(DiagnosticsProperty<PreparedMouseCursor>('cursor', cursor?.value, defaultValue: null));
   }
 }
 
@@ -288,7 +288,6 @@ class MouseTracker extends ChangeNotifier {
   MouseTracker(this._router, this.annotationFinder) : assert(_router != null),
        assert(annotationFinder != null) {
     _router.addGlobalRoute(_handleEvent);
-    _listeners.add(_handleDeviceUpdateMouseEvents);
   }
 
   @override
@@ -316,11 +315,10 @@ class MouseTracker extends ChangeNotifier {
   // It is the source of truth for the list of connected mouse devices.
   final Map<int, _MouseState> _mouseStates = <int, _MouseState>{};
 
-  // Used to wrap any procedure, `task`, when the task might change
-  // `mouseIsConnected`.
+  // Used to wrap any procedure that might change `mouseIsConnected`.
   //
-  // If this `mouseIsConnected` is changed, [notifyListeners] will be called at
-  // the end of this method.
+  // This method records `mouseIsConnected`, runs `task`, and calls
+  // [notifyListeners] at the end if the `mouseIsConnected` has changed.
   void _monitorMouseConnection(VoidCallback task) {
     final bool mouseWasConnected = mouseIsConnected;
     task();
@@ -328,24 +326,20 @@ class MouseTracker extends ChangeNotifier {
       notifyListeners();
   }
 
-  // A bit that is only set and unset during `_updateDevices` in debug mode.
-  // It ensures that `_updateDevices` is not recursively called, which indicates
-  // bad structure.
-  bool _duringDeviceUpdate = false;
-  // Used to wrap any procedure, `task`, when the task might call
-  // [handleDeviceUpdate].
+  bool _debugDuringDeviceUpdate = false;
+  // Used to wrap any procedure that might call [handleDeviceUpdate].
   //
-  // This method does not do anything in release mode, but ensures that
-  // [handleDeviceUpdate] is not called recursively in debug mode.
+  // In debug mode, this method uses `_debugDuringDeviceUpdate` to prevent
+  // `_deviceUpdatePhase` being recursively called.
   void _deviceUpdatePhase(VoidCallback task) {
-    assert(!_duringDeviceUpdate);
+    assert(!_debugDuringDeviceUpdate);
     assert(() {
-      _duringDeviceUpdate = true;
+      _debugDuringDeviceUpdate = true;
       return true;
     }());
     task();
     assert(() {
-      _duringDeviceUpdate = false;
+      _debugDuringDeviceUpdate = false;
       return true;
     }());
   }
@@ -400,7 +394,7 @@ class MouseTracker extends ChangeNotifier {
         final LinkedHashSet<MouseTrackerAnnotation> nextAnnotations = _findAnnotations(targetState);
         final LinkedHashSet<MouseTrackerAnnotation> lastAnnotations = targetState.replaceAnnotations(nextAnnotations);
 
-        _handleDeviceUpdate(MouseTrackerUpdateDetails.byPointerEvent(
+        handleDeviceUpdate(MouseTrackerUpdateDetails.byPointerEvent(
           lastAnnotations: lastAnnotations,
           nextAnnotations: nextAnnotations,
           previousEvent: lastEvent,
@@ -437,7 +431,7 @@ class MouseTracker extends ChangeNotifier {
         final LinkedHashSet<MouseTrackerAnnotation> nextAnnotations = _findAnnotations(dirtyState);
         final LinkedHashSet<MouseTrackerAnnotation> lastAnnotations = dirtyState.replaceAnnotations(nextAnnotations);
 
-        _handleDeviceUpdate(MouseTrackerUpdateDetails.byNewFrame(
+        handleDeviceUpdate(MouseTrackerUpdateDetails.byNewFrame(
           lastAnnotations: lastAnnotations,
           nextAnnotations: nextAnnotations,
           previousEvent: lastEvent,
@@ -446,24 +440,30 @@ class MouseTracker extends ChangeNotifier {
     });
   }
 
-  final ObserverList<MouseTrackerUpdateListener> _listeners = ObserverList<MouseTrackerUpdateListener>();
-  void addUpdateListener(MouseTrackerUpdateListener listener) {
-    assert(listener != null);
-    _listeners.add(listener);
-  }
+  /// A callback that is called on the update of a device.
+  ///
+  /// Override this method to handle updates when the relationship between a
+  /// device and annotations have changed. The update has 2 kind of triggers:
+  ///
+  ///   * If `details.triggeringEvent` is not null, then the update is triggered
+  ///     by the addition, movement, or removal of the pointer during the handler
+  ///     of the event.
+  ///   * If `details.triggeringEvent` is null, then the update is triggered by
+  ///     the appearance, movement, or disappearance of the annotation during
+  ///     the post-frame callback phase following the frame.
+  ///
+  /// Typically called only by [MouseTracker].
+  ///
+  /// Subclasses should override this method to first call to first call their
+  /// inherited [handleDeviceUpdate] method, and then process the update as
+  /// desired.
+  // Calling method must be wrapped in `_deviceUpdatePhase`.
+  @mustCallSuper
+  @protected
+  void handleDeviceUpdate(MouseTrackerUpdateDetails details) {
+    assert(_debugDuringDeviceUpdate);
 
-  void removeUpdateListener(MouseTrackerUpdateListener listener) {
-    assert(listener != null);
-    _listeners.remove(listener);
-  }
-
-  void _handleDeviceUpdate(MouseTrackerUpdateDetails details) {
-    assert(_duringDeviceUpdate);
-
-    final List<MouseTrackerUpdateListener> localListeners = List<MouseTrackerUpdateListener>.from(_listeners);
-    for (final MouseTrackerUpdateListener listener in localListeners) {
-      listener(details);
-    }
+    _handleDeviceUpdateMouseEvents(details);
   }
 
   // Dispatch callbacks related to a device after all necessary information
@@ -540,7 +540,7 @@ class MouseTracker extends ChangeNotifier {
   /// [RendererBinding]'s drawing method.
   void schedulePostFrameCheck() {
     assert(_duringBuildPhase);
-    assert(!_duringDeviceUpdate);
+    assert(!_debugDuringDeviceUpdate);
     if (!mouseIsConnected)
       return;
     if (!_hasScheduledPostFrameCheck) {

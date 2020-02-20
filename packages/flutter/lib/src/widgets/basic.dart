@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import 'dart:async';
 import 'dart:ui' as ui show Image, ImageFilter, TextHeightBehavior;
 
 import 'package:flutter/foundation.dart';
@@ -13,7 +12,6 @@ import 'package:flutter/services.dart';
 import 'binding.dart';
 import 'debug.dart';
 import 'framework.dart';
-import 'image.dart' show createLocalImageConfiguration;
 import 'localizations.dart';
 import 'widget_span.dart';
 
@@ -6090,11 +6088,25 @@ class MouseRegion extends StatefulWidget {
   ///    this callback is internally implemented, but without the restriction.
   final PointerExitEventListener onExit;
 
+  /// The mouse cursor for a pointer if it enters or is hovering this region.
+  ///
+  /// This cursor will be set to a mouse pointer if this region is the
+  /// front-most region that contains the pointer.
+  ///
+  /// This defaults to null, which means the choice is deferred to the next
+  /// region behind this one with a non-null [cursor], or
+  /// [MouseTrackerCursorMixin.defaultCursor] if it can't find any.
+  ///
+  /// See also:
+  ///
+  ///  * [MouseCursor], which introduces the mouse cursors.
   final MouseCursor cursor;
 
   /// Whether this widget should prevent other [MouseRegion]s visually behind it
-  /// from detecting the pointer, thus affecting how their [onHover], [onEnter],
-  /// and [onExit] behave.
+  /// from detecting the pointer.
+  ///
+  /// This changes the list of regions that a pointer hovers, thus affecting how
+  /// their [onHover], [onEnter], [onExit], and [cursor] behave.
   ///
   /// If [opaque] is true, this widget will absorb the mouse pointer and
   /// prevent this widget's siblings (or any other widgets that are not

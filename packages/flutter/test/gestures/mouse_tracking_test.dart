@@ -68,12 +68,12 @@ void main() {
     MouseDetectorAnnotationFinder annotationFinder,
     List<_CursorUpdateDetails> logCursors,
   }) {
-    final MouseTracker mouseTracker = MouseTracker(
+    final MouseTracker mouseTracker = _TestMouseTracker(
       GestureBinding.instance.pointerRouter,
       annotationFinder,
+      logCursors: logCursors,
     );
     RendererBinding.instance.initMouseTracker(mouseTracker);
-    RendererBinding.instance.initMouseCursorManager(_TestMouseCursorManager(logCursors: logCursors));
   }
 
   // System cursors must be constants.
@@ -839,10 +839,12 @@ class _CursorUpdateDetails {
   }
 }
 
-class _TestMouseCursorManager extends MouseCursorManager {
-  _TestMouseCursorManager({
+class _TestMouseTracker extends MouseTracker with MouseTrackerCursorMixin {
+  _TestMouseTracker(
+    PointerRouter router,
+    MouseDetectorAnnotationFinder annotationFinder, {
     this.logCursors,
-  });
+  }) : super(router, annotationFinder);
 
   final List<_CursorUpdateDetails> logCursors;
 
@@ -854,7 +856,4 @@ class _TestMouseCursorManager extends MouseCursorManager {
     if (logCursors != null)
       logCursors.add(_CursorUpdateDetails(cursor: cursor, device: device));
   }
-
-  @override
-  Future<void> dispose() async { }
 }
