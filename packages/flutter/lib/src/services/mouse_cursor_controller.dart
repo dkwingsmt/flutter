@@ -69,3 +69,20 @@ class MouseCursorController {
     return e is PlatformException && e.code == kUnsupportedFeatureCode;
   }
 }
+
+mixin StandardMouseTrackerCursorMixin on MouseTrackerCursorMixin {
+  @override
+  PreparedMouseCursor get defaultCursor => SystemMouseCursors.basic;
+
+  @override
+  @protected
+  Future<void> handleActivateCursor(int device, PreparedMouseCursor cursor) async {
+    if (cursor is NoopMouseCursor)
+      return;
+
+    if (cursor is SystemMouseCursor)
+      return MouseCursorController.activateShape(device: device, shape: cursor.shape);
+
+    throw UnimplementedError('Unsupported mouse cursor type: ${cursor.runtimeType}');
+  }
+}
