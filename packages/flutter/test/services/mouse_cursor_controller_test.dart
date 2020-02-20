@@ -6,19 +6,18 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  // test('Should works on platforms that has not implemented ', () async {
-  //   TestWidgetsFlutterBinding.ensureInitialized();
-  //   final MethodChannel mockChannel = const OptionalMethodChannel(_kTestChannel)
-  //     ..setMockMethodCallHandler((MethodCall call) async => null);
+  test('Should work on platforms that does not support mouse cursor', () async {
+    TestWidgetsFlutterBinding.ensureInitialized();
+    final MethodChannel mockChannel = SystemChannels.mouseCursor;
 
-  //   expect(
-  //     await manager.activateShape(const MouseCursorDelegateActivateShapeDetails(
-  //       device: 10,
-  //       shape: 100,
-  //     )),
-  //     isTrue,
-  //   );
-  // });
+    mockChannel.setMockMethodCallHandler((MethodCall call) async {
+      return null;
+    });
+
+    await MouseCursorController.activateShape(device: 10, shape: 100);
+
+    // Passes if no errors are thrown
+  });
 
   test('activateShape should correctly pass argument', () async {
     TestWidgetsFlutterBinding.ensureInitialized();
@@ -35,8 +34,13 @@ void main() {
     ]);
     logs.clear();
 
+  });
+
+  test('Should throw a PlatformException of unsupported feature when told so', () async {
+    TestWidgetsFlutterBinding.ensureInitialized();
+    final MethodChannel mockChannel = SystemChannels.mouseCursor;
+
     mockChannel.setMockMethodCallHandler((MethodCall call) async {
-      logs.add(call);
       throw PlatformException(
         code: MouseCursorController.kUnsupportedFeatureCode,
         message: 'mock details',
@@ -44,28 +48,22 @@ void main() {
     });
     await expectLater(
       MouseCursorController.activateShape(device: 11, shape: 101),
-      throwsA(_UnsupportedFeatureMatcher(PlatformException(
-        code: MouseCursorController.kUnsupportedFeatureCode,
+      throwsA(_UnsupportedFeatureMatcher(
         message: 'mock details',
-      ))),
+      )),
     );
-    expectMethodCallsEquals(logs, const <MethodCall>[
-      MethodCall('activateShape', <String, dynamic>{'device': 11, 'shape': 101}),
-    ]);
-    logs.clear();
+  });
+
+  test('Should throw a PlatformException when an error occurs', () async {
+    TestWidgetsFlutterBinding.ensureInitialized();
+    final MethodChannel mockChannel = SystemChannels.mouseCursor;
 
     mockChannel.setMockMethodCallHandler((MethodCall call) async {
-      logs.add(call);
       throw ArgumentError('some error');
     });
     await expectLater(
       MouseCursorController.activateShape(device: 12, shape: 102),
-      throwsA(isInstanceOf<PlatformException>()),
-    );
-    expectMethodCallsEquals(logs, const <MethodCall>[
-      MethodCall('activateShape', <String, dynamic>{'device': 12, 'shape': 102}),
-    ]);
-    logs.clear();
+      throwsA(isInstanceOf<PlatformException>()));
   });
 }
 
@@ -80,24 +78,26 @@ void expectMethodCallsEquals(dynamic subject, List<MethodCall> target) {
 }
 
 class _UnsupportedFeatureMatcher extends Matcher {
-  _UnsupportedFeatureMatcher(this._expected);
+  _UnsupportedFeatureMatcher({this.message, this.details});
 
-  final PlatformException _expected;
-
-  static String get expectedCode => MouseCursorController.kUnsupportedFeatureCode;
+  final String message;
+  final dynamic details;
 
   @override
   bool matches(dynamic untypedItem, Map<dynamic, dynamic> matchState) {
     return untypedItem is PlatformException
-        && untypedItem.code == expectedCode
-        && untypedItem.message == _expected.message
-        && untypedItem.details == _expected.details;
+        && MouseCursorController.isUnsupportedFeature(untypedItem)
+        && untypedItem.message == message
+        && untypedItem.details == details;
   }
 
   @override
   Description describe(Description description) {
-    return description
-      .addDescriptionOf(_expected);
+    description
+      .add('indicates unsupported feature with message: ').addDescriptionOf(message);
+    if (details != null)
+      description.add('and details: ').addDescriptionOf(details);
+    return description;
   }
 
   @override
@@ -107,20 +107,19 @@ class _UnsupportedFeatureMatcher extends Matcher {
     Map<dynamic, dynamic> matchState,
     bool verbose,
   ) {
-    if (untypedItem is! PlatformException) {
-      return mismatchDescription
-        .add('is type ${untypedItem.runtimeType} instead of PlatformException');
+    if (!MouseCursorController.isUnsupportedFeature(untypedItem)) {
+      mismatchDescription.add('does not indicate unsupported feature, because it is type ${untypedItem.runtimeType}');
+      if (untypedItem is PlatformException)
+        mismatchDescription.add(' with code ${untypedItem.code}');
+      return mismatchDescription;
     }
     final PlatformException item = untypedItem as PlatformException;
-    if (item.code != expectedCode) {
+    if (item.message != message) {
       return mismatchDescription
-        .add('has code ${item.code} instead of $expectedCode');
-    } else if (item.message != _expected.message) {
+        .add('has message ${item.message} instead of $message');
+    } else if (item.details != details) {
       return mismatchDescription
-        .add('has message ${item.message} instead of ${_expected.message}');
-    } else if (item.details != _expected.details) {
-      return mismatchDescription
-        .add('has details ${item.details} instead of ${_expected.details}');
+        .add('has details ${item.details} instead of $details');
     }
     return mismatchDescription;
   }
