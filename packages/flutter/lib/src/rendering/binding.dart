@@ -14,7 +14,6 @@ import 'package:flutter/services.dart';
 
 import 'box.dart';
 import 'debug.dart';
-import 'mouse_cursor.dart';
 import 'object.dart';
 import 'view.dart';
 

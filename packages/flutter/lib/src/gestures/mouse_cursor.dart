@@ -316,10 +316,9 @@ class SystemMouseCursors {
   /// Displays no cursor at the pointer.
   static const SystemMouseCursor none = SystemMouseCursor._(shape: 0x334c4a, debugDescription: 'none');
 
-  /// The platform-dependent basic cursor. Typically the shape of an arrow.
+  /// The platform-dependent basic cursor.
   ///
-  /// This cursor is the fallback of unimplemented cursors, and should be
-  /// implemented by all platforms that support mouse cursor.
+  /// Typically the shape of an arrow.
   static const SystemMouseCursor basic = SystemMouseCursor._(shape: 0xf17aaa, debugDescription: 'basic');
 
   /// A cursor that indicates links or something that needs to be emphasized
