@@ -429,7 +429,8 @@ class _SegmentedControlState<T> extends State<CupertinoSlidingSegmentedControl<T
               selected: widget.groupValue == currentKey,
               child: Opacity(
                 opacity: _pressTween.evaluate(_pressControllers[currentKey]),
-                // Expand the hitTest area to be as large as the Opacity widget.
+                // MetaData is used to expand the hitTest area to be as large
+                // as the opacity widget.
                 child: MetaData(
                   behavior: HitTestBehavior.opaque,
                   child: Center(child: widget.children[currentKey]),
@@ -1032,7 +1033,10 @@ class _RenderSegmentedControl<T> extends RenderBox
           position: center,
           hitTest: (BoxHitTestResult result, Offset position) {
             assert(position == center);
-            return child.hitTest(result, position: center);
+            child.hitTest(result, position: center);
+            // Always return true, because `_RenderSegmentedControl.hitTest`
+            // needs to return true for the [handleEvent] to be called.
+            return true;
           },
         );
       }

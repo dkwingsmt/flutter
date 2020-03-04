@@ -7,7 +7,8 @@ import 'dart:io' show Platform;
 import 'dart:ui' as ui show Scene, SceneBuilder, Window;
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter/gestures.dart' show MouseTrackerTarget, HitTestTarget, debugPrintHitTestDiagnostics;
+import 'package:flutter/scheduler.dart';
+import 'package:flutter/gestures.dart' show MouseTrackerTarget, HitTestTarget, debugPrintHitTestDiagnostics, ValueTarget;
 import 'package:flutter/services.dart';
 import 'package:vector_math/vector_math_64.dart';
 
@@ -191,8 +192,8 @@ class RenderView extends RenderObject with RenderObjectWithChildMixin<RenderBox>
       result.add(HitTestEntry(this));
     }
     assert(_debugHitTestDiagnostic(this,
-      '☆ Ending hit test with ${result.path.length} entries' +
-      result.path.map<String>((HitTestEntry e) => '\n  ${describeIdentity(e.target)}').join()));
+      '☆ Ending hit test for type ${result.type} with ${result.path.length} entries' +
+      result.path.map<String>((HitTestEntry e) => '\n  * ${describeIdentity(e.target)}').join()));
     return true;
   }
 
@@ -212,6 +213,10 @@ class RenderView extends RenderObject with RenderObjectWithChildMixin<RenderBox>
       return null;
     }
     return it.current;
+  }
+
+  S _searchFirstValue<S>(Offset position) {
+    return searchFirst<ValueTarget<S>>(position)?.targetAs<ValueTarget<S>>()?.value;
   }
 
   /// Determines the set of mouse tracker annotations at the given position.
@@ -254,7 +259,7 @@ class RenderView extends RenderObject with RenderObjectWithChildMixin<RenderBox>
       final ui.SceneBuilder builder = ui.SceneBuilder();
       final ui.Scene scene = layer.buildScene(builder);
       if (automaticSystemUiAdjustment)
-        _updateSystemChrome();
+        _scheduleUpdateSystemChrome();
       _window.render(scene);
       scene.dispose();
       assert(() {
@@ -267,16 +272,27 @@ class RenderView extends RenderObject with RenderObjectWithChildMixin<RenderBox>
     }
   }
 
+  bool _updateSystemChromeScheduled = false;
+  void _scheduleUpdateSystemChrome() {
+    if (!_updateSystemChromeScheduled) {
+      _updateSystemChromeScheduled = true;
+      SchedulerBinding.instance.addPostFrameCallback((Duration timeStamp) {
+        _updateSystemChromeScheduled = false;
+        _updateSystemChrome();
+      });
+    }
+  }
+
   void _updateSystemChrome() {
     final Rect bounds = paintBounds;
     final Offset top = Offset(bounds.center.dx, _window.padding.top) / _window.devicePixelRatio;
     final Offset bottom = Offset(bounds.center.dx, bounds.center.dy - _window.padding.bottom) / _window.devicePixelRatio;
-    final SystemUiOverlayStyle upperOverlayStyle = searchFirst<SystemUiOverlayStyle>(top)?.targetAs<SystemUiOverlayStyle>();
+    final SystemUiOverlayStyle upperOverlayStyle = _searchFirstValue<SystemUiOverlayStyle>(top);
     // Only android has a customizable system navigation bar.
     SystemUiOverlayStyle lowerOverlayStyle;
     switch (defaultTargetPlatform) {
       case TargetPlatform.android:
-        lowerOverlayStyle = searchFirst<SystemUiOverlayStyle>(bottom)?.targetAs<SystemUiOverlayStyle>();
+        lowerOverlayStyle = _searchFirstValue<SystemUiOverlayStyle>(bottom);
         break;
       case TargetPlatform.fuchsia:
       case TargetPlatform.iOS:

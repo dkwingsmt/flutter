@@ -7106,7 +7106,7 @@ class ColoredBox extends SingleChildRenderObjectWidget {
   }
 }
 
-class _RenderColoredBox extends RenderProxyBoxWithHitTestBehavior {
+class _RenderColoredBox extends RenderProxyBoxWithHitTestBehavior with ExtraAnnotationsRenderObject {
   _RenderColoredBox({@required Color color})
     : _color = color,
       super(behavior: HitTestBehavior.opaque);
@@ -7123,6 +7123,13 @@ class _RenderColoredBox extends RenderProxyBoxWithHitTestBehavior {
     }
     _color = value;
     markNeedsPaint();
+  }
+
+  @override
+  void addExtraAnnotations(HashSet<Type> annotations) {
+    annotations
+      ..add(HitTestTarget)
+      ..add(MouseTrackerTarget);
   }
 
   @override

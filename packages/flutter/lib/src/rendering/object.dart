@@ -1981,14 +1981,21 @@ abstract class RenderObject extends AbstractNode with DiagnosticableTreeMixin im
   //
   // Don't cache self. Be null if empty.
   @protected
-  HashSet<Type> childrenAnnotations() => null;
+  HashSet<Type> childrenAnnotations() {
+    final HashSet<Type> result = HashSet<Type>();
+    visitChildren((RenderObject child) {
+      final HashSet<Type> childTypes = child.subtreeAnnotations();
+      if (childTypes != null)
+        result.addAll(childTypes);
+    });
+    return result.isEmpty ? null : result;
+  }
 
   // Override to set selfAnnotations.
   // If change, must call markNeedsAnnotate;
   //
   // Be null if empty.
   @protected
-  // HashSet<Type> get selfAnnotations => HashSet<Type>.from(const <Type>{HitTestTarget});
   HashSet<Type> get selfAnnotations => null;
 
   // HIT TESTING
@@ -3005,6 +3012,21 @@ mixin SingleAnnotationRenderObject<T> on RenderObject {
   HashSet<Type> _selfAnnotations;
 }
 
+mixin ExtraAnnotationsRenderObject on RenderObject {
+  @protected
+  void addExtraAnnotations(HashSet<Type> annotations);
+
+  @override
+  HashSet<Type> childrenAnnotations() {
+    // Add types to childrenAnnotations but not selfAnnotations so that it
+    // absorbs hits but does not add itself.
+    final HashSet<Type> childrenAnnotations = super.childrenAnnotations();
+    final HashSet<Type> result = childrenAnnotations == null ? HashSet<Type>() : HashSet<Type>.from(childrenAnnotations);
+    addExtraAnnotations(result);
+    return result.isEmpty ? null : result;
+  }
+}
+
 /// Generic mixin for render objects with one child.
 ///
 /// Provides a child model for a render object subclass that has
@@ -3416,17 +3438,9 @@ mixin ContainerRenderObjectMixin<ChildType extends RenderObject, ParentDataType 
   @protected
   @override
   HashSet<Type> childrenAnnotations() {
-    if (firstChild == null)
-      return null;
     if (firstChild == lastChild)
-      return firstChild.subtreeAnnotations();
-    final HashSet<Type> result = HashSet<Type>();
-    visitChildren((RenderObject child) {
-      final HashSet<Type> childTypes = child.subtreeAnnotations();
-      if (childTypes != null)
-        result.addAll(childTypes);
-    });
-    return result.isEmpty ? null : result;
+      return firstChild?.subtreeAnnotations();
+    return super.childrenAnnotations();
   }
 
   @override

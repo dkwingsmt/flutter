@@ -1286,22 +1286,23 @@ abstract class RenderSliver extends RenderObject {
   /// render object is to override its [hitTestSelf] and [hitTestChildren]
   /// methods.
   bool hitTest(SliverHitTestResult result, { @required double mainAxisPosition, @required double crossAxisPosition }) {
+    assert(_debugHitTestDiagnostic(this, 'Enter with position main $mainAxisPosition cross $crossAxisPosition'));
     if (mainAxisPosition >= 0.0 && mainAxisPosition < geometry.hitTestExtent &&
         crossAxisPosition >= 0.0 && crossAxisPosition < constraints.crossAxisExtent) {
-      final bool hitSelf = hitTestSelf(mainAxisPosition: mainAxisPosition, crossAxisPosition: crossAxisPosition);
-      final bool containsType = result.isTypedWithin(subtreeAnnotations());
-      if (hitSelf && !containsType)
-        return true;
-      final bool hitTarget = hitTestChildren(result, mainAxisPosition: mainAxisPosition, crossAxisPosition: crossAxisPosition) || hitSelf;
+      final bool hitTarget = hitTestChildren(result, mainAxisPosition: mainAxisPosition, crossAxisPosition: crossAxisPosition)
+        || hitTestSelf(mainAxisPosition: mainAxisPosition, crossAxisPosition: crossAxisPosition);
       if (hitTarget && result.isTypedWithin(selfAnnotations)) {
+        assert(_debugHitTestDiagnostic(this, 'Add entry'));
         result.add(SliverHitTestEntry(
           this,
           mainAxisPosition: mainAxisPosition,
           crossAxisPosition: crossAxisPosition,
         ));
       }
+      assert(_debugHitTestDiagnostic(this, 'Return with value $hitTarget'));
       return hitTarget;
     }
+    assert(_debugHitTestDiagnostic(this, 'Return with value false'));
     return false;
   }
 
@@ -1844,4 +1845,14 @@ class RenderSliverToBoxAdapter extends RenderSliverSingleBoxAdapter {
     );
     setChildParentData(child, constraints, geometry);
   }
+}
+
+bool _debugHitTestDiagnostic(RenderSliver target, String message) {
+  assert(() {
+    if (debugPrintHitTestDiagnostics) {
+      debugPrint('HitTest ${describeIdentity(target)} ❙ $message');
+    }
+    return true;
+  }());
+  return true;
 }

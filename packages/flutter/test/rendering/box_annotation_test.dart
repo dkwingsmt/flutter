@@ -139,7 +139,7 @@ void main() {
       final BoxHitTestResult result = _createResult<ValueTarget<int>>();
       final bool isHit = root.hitTest(result, position: const Offset(9, 1));
       expect(isHit, true);
-      expect(result, isEmpty);
+      expect(_getValues<int>(result), <int>[202]);
     }
   });
 
@@ -187,7 +187,7 @@ void main() {
     }
   });
 
-  test('Row keeps opacity from unrelated type', () {
+  test('Row does not use opacity from unrelated type', () {
     final RenderBox root = _BasicStack(
       children: <RenderBox>[
         _ValueLeaf<int>(101, size: const Size(100, 100), opaque: false),
@@ -211,8 +211,8 @@ void main() {
     {
       final BoxHitTestResult result = _createResult<ValueTarget<int>>();
       final bool isHit = root.hitTest(result, position: const Offset(9, 1));
-      expect(isHit, true);
-      expect(result, isEmpty);
+      expect(isHit, false);
+      expect(_getValues<int>(result), <int>[101]);
     }
   });
 
@@ -251,7 +251,7 @@ void main() {
     {
       final BoxHitTestResult result = _createResult<ValueTarget<int>>();
       final bool isHit = root.hitTest(result, position: Offset.zero);
-      expect(isHit, true);
+      expect(isHit, false);
       expect(result, isEmpty);
     }
 
@@ -292,7 +292,7 @@ void main() {
     {
       final BoxHitTestResult result = _createResult<ValueTarget<int>>();
       final bool isHit = root.hitTest(result, position: Offset.zero);
-      expect(isHit, true);
+      expect(isHit, false);
       expect(result, isEmpty);
     }
 

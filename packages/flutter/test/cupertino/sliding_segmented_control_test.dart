@@ -277,6 +277,41 @@ void main() {
     expect(groupValue, 1);
   });
 
+  testWidgets('Tap on the padding does not change toggle state', (WidgetTester tester) async {
+    const Map<int, Widget> children = <int, Widget>{
+      0: Text('Child 1'),
+      1: Text('Child 2'),
+      2: Text('Child 3'),
+    };
+
+    await tester.pumpWidget(
+      boilerplate(
+        builder: (BuildContext context) {
+          return CupertinoSlidingSegmentedControl<int>(
+            key: const ValueKey<String>('Segmented Control'),
+            children: children,
+            groupValue: groupValue,
+            onValueChanged: defaultCallback,
+          );
+        },
+      ),
+    );
+
+    expect(groupValue, 0);
+
+    await tester.tap(find.text('Child 2'));
+
+    expect(groupValue, 1);
+
+    print(tester.getTopLeft(find.byKey(const ValueKey<String>('Segmented Control'))));
+    await tester.tapAt(
+      tester.getTopLeft(find.byKey(const ValueKey<String>('Segmented Control')))
+      + const Offset(1, 1),
+    );
+
+    expect(groupValue, 1);
+  });
+
   testWidgets(
     'Segmented controls respect theme',
     (WidgetTester tester) async {
@@ -775,6 +810,7 @@ void main() {
 
     expect(groupValue, 0);
 
+    debugDumpRenderTree();
     final Offset centerOfTwo = tester.getCenter(find.byWidget(children[1]));
     // Tap just inside segment bounds
     await tester.tapAt(centerOfTwo + const Offset(10, 0));

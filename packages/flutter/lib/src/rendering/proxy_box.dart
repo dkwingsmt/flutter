@@ -117,7 +117,13 @@ mixin RenderProxyBoxMixin<T extends RenderBox> on RenderBox, RenderObjectWithChi
 
   @override
   bool hitTestChildren(BoxHitTestResult result, { Offset position }) {
-    return child?.hitTest(result, position: position) ?? false;
+    if (child == null)
+      return false;
+    if (selfAnnotations == null)
+      return child.hitTest(result, position: position);
+    if (!result.isTypedWithin(child.subtreeAnnotations()))
+      return false;
+    return child.hitTest(result, position: position);
   }
 
   @override
@@ -1935,7 +1941,7 @@ enum DecorationPosition {
 }
 
 /// Paints a [Decoration] either before or after its child paints.
-class RenderDecoratedBox extends RenderProxyBox {
+class RenderDecoratedBox extends RenderProxyBox with ExtraAnnotationsRenderObject {
   /// Creates a decorated box.
   ///
   /// The [decoration], [position], and [configuration] arguments must not be
@@ -2011,6 +2017,13 @@ class RenderDecoratedBox extends RenderProxyBox {
     // example, animated GIFs would stop animating when a DecoratedBox gets
     // moved around the tree due to GlobalKey reparenting.
     markNeedsPaint();
+  }
+
+  @override
+  void addExtraAnnotations(HashSet<Type> annotations) {
+    annotations
+      ..add(HitTestTarget)
+      ..add(MouseTrackerTarget);
   }
 
   @override
@@ -2846,19 +2859,29 @@ class RenderMouseRegion extends RenderProxyBox
 
   @override
   bool hitTest(BoxHitTestResult result, {Offset position}) {
-    if (!size.contains(position))
+    assert(_debugHitTestDiagnostic(this, 'Enter with $position'));
+    if (!size.contains(position)) {
+      assert(_debugHitTestDiagnostic(this,
+        'Bail out because size $size does not contain position $position'));
       return false;
-    final bool hitSelf = hitTestSelf(position);
-    if (hitSelf && opaque && !result.isTypedWithin(subtreeAnnotations()))
-      return true;
+    }
+    if (!result.isTypedWithin(subtreeAnnotations())) {
+      assert(_debugHitTestDiagnostic(this,
+        'Bail out because type is not contained by subtree, which has ${subtreeAnnotations()}'));
+      return false;
+    }
     final bool hitChildren = hitTestChildren(result, position: position);
-    if (result.isNotEmpty && result.stopAtFirstResult)
+    if (result.isNotEmpty && result.stopAtFirstResult) {
+      assert(_debugHitTestDiagnostic(this, 'Bail out because a result has been found'));
       return hitChildren;
-    final bool hitTarget = hitSelf && result.isTypedWithin(selfAnnotations);
-    if (hitTarget)
+    }
+    final bool hitTarget = hitTestSelf(position) && result.isTypedWithin(selfAnnotations);
+    if (hitTarget) {
+      assert(_debugHitTestDiagnostic(this, 'Add entry'));
       result.add(BoxHitTestEntry(this, position));
+    }
     // print('${describeIdentity(this)} hitChildren $hitChildren hitTarget $hitTarget opaque $opaque');
-    return hitChildren || (hitSelf && opaque);
+    return hitChildren || (hitTarget && opaque);
   }
 
   @override

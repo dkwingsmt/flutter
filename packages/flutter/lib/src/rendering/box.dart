@@ -2142,26 +2142,14 @@ abstract class RenderBox extends RenderObject {
       }
       return true;
     }());
-    // print('* ${describeIdentity(this)} hitTest<${result.type}> contains? ${_size.contains(position)} subtreeAnnos ${subtreeAnnotations()} hitSelf ${hitTestSelf(position)}');
     if (!_size.contains(position)) {
       assert(_debugHitTestDiagnostic(this,
         'Bail out because size $_size does not contain position $position'));
       return false;
     }
-    final bool hitSelf = hitTestSelf(position);
-    // print('pre-skip? ${hitSelf && !result.isTypedWithin(subtreeAnnotations())}');
-    // The subtree must not be skipped just because the subtree doesn't contain
-    // the type, since the returned boolean can also be affected by `hitTestChildren`.
-    if (hitSelf && !result.isTypedWithin(subtreeAnnotations())) {
-      assert(_debugHitTestDiagnostic(this,
-        'Bail out because hitSelf is true and type is not contained by subtree, which has ${subtreeAnnotations()}'));
-      return hitSelf;
-    }
-    final bool hitTarget = hitTestChildren(result, position: position) || hitSelf;
-    // print('$this ${result.type} $selfAnnotations');
+    final bool hitTarget = hitTestChildren(result, position: position) || hitTestSelf(position);
     if (hitTarget && result.isTypedWithin(selfAnnotations)) {
       assert(_debugHitTestDiagnostic(this, 'Add entry'));
-      // print('* ${describeIdentity(this)} $selfAnnotations ${result.type}');
       result.add(BoxHitTestEntry(this, position));
     }
     assert(_debugHitTestDiagnostic(this, 'Return with value $hitTarget'));
@@ -2508,18 +2496,24 @@ mixin RenderBoxContainerDefaultsMixin<ChildType extends RenderBox, ParentDataTyp
     ChildType child = lastChild;
     while (child != null) {
       final ParentDataType childParentData = child.parentData as ParentDataType;
-      final bool isHit = result.addWithPaintOffset(
-        offset: childParentData.offset,
-        position: position,
-        hitTest: (BoxHitTestResult result, Offset transformed) {
-          assert(transformed == position - childParentData.offset);
-          return child.hitTest(result, position: transformed);
-        },
-      );
-      if (isHit)
-        return true;
-      if (result.stopAtFirstResult && result.isNotEmpty)
-        return false;
+      if (result.isTypedWithin(child.subtreeAnnotations())) {
+        final bool isHit = result.addWithPaintOffset(
+          offset: childParentData.offset,
+          position: position,
+          hitTest: (BoxHitTestResult result, Offset transformed) {
+            assert(transformed == position - childParentData.offset);
+            return child.hitTest(result, position: transformed);
+          },
+        );
+        if (isHit)
+          return true;
+        if (result.stopAtFirstResult && result.isNotEmpty)
+          return false;
+      } else {
+        assert(_debugHitTestDiagnostic(this,
+          'Skip child $child because type is not contained by subtree, '
+          'which has ${child.subtreeAnnotations()}'));
+      }
       child = childParentData.previousSibling;
     }
     return false;
@@ -2557,7 +2551,7 @@ mixin RenderBoxContainerDefaultsMixin<ChildType extends RenderBox, ParentDataTyp
   }
 }
 
-bool _debugHitTestDiagnostic(RenderBox target, String message) {
+bool _debugHitTestDiagnostic(RenderObject target, String message) {
   assert(() {
     if (debugPrintHitTestDiagnostics) {
       debugPrint('HitTest ${describeIdentity(target)} ❙ $message');

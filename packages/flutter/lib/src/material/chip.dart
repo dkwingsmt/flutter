@@ -2516,21 +2516,6 @@ class _RenderChip extends RenderBox {
     return Size(deleteIconWidth, deleteIconHeight);
   }
 
-  @protected
-  @override
-  HashSet<Type> childrenAnnotations() {
-    final HashSet<Type> result = HashSet<Type>();
-    void _mergeChildAnnotations(RenderObject object) {
-      final HashSet<Type> childResult = object?.subtreeAnnotations();
-      if (childResult != null)
-        result.addAll(childResult);
-    }
-    _mergeChildAnnotations(deleteIcon);
-    _mergeChildAnnotations(label);
-    _mergeChildAnnotations(avatar);
-    return result.isEmpty ? null : result;
-  }
-
   @override
   bool hitTest(BoxHitTestResult result, { Offset position }) {
     _debugHitTestDiagnostic(this, 'Enter with $position');

@@ -411,6 +411,8 @@ void main() {
 
     expect(wasPressed, isFalse);
 
+    debugDumpRenderTree();
+
     await tester.tap(find.text('One'));
 
     expect(wasPressed, isTrue);

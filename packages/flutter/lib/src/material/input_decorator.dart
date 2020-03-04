@@ -1463,18 +1463,6 @@ class _RenderDecoration extends RenderBox {
     doPaint(counter);
   }
 
-  @protected
-  @override
-  HashSet<Type> childrenAnnotations() {
-    final HashSet<Type> result = HashSet<Type>();
-    for (final RenderBox child in _children) {
-      final HashSet<Type> childResult = child.subtreeAnnotations();
-      if (childResult != null)
-        result.addAll(childResult);
-    }
-    return result.isEmpty ? null : result;
-  }
-
   @override
   bool hitTestSelf(Offset position) => true;
 
