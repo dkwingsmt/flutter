@@ -842,6 +842,7 @@ mixin _PlatformViewGestureMixin on RenderBox {
   @override
   void detach() {
     _gestureRecognizer.reset();
+    _hoverAnnotation.dispose();
     _hoverAnnotation = null;
     super.detach();
   }

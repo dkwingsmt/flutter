@@ -36,12 +36,20 @@ class MouseTrackerAnnotation extends Diagnosticable {
   /// movements.
   ///
   /// All arguments are optional.
-  const MouseTrackerAnnotation({
+  MouseTrackerAnnotation({
     this.onEnter,
     this.onHover,
     this.onExit,
-    this.cursor,
-  });
+    PreparedMouseCursor cursor,
+  }) : _cursorNotifier = ValueNotifier<PreparedMouseCursor>(cursor);
+
+  /// Discards any resources used by the object. After this is called, the
+  /// object is not in a usable state and should be discarded.
+  ///
+  /// This method should only be called by the object's owner.
+  void dispose() {
+    _cursorNotifier.dispose();
+  }
 
   /// Triggered when a mouse pointer, with or without buttons pressed, has
   /// entered the annotated region.
@@ -93,11 +101,15 @@ class MouseTrackerAnnotation extends Diagnosticable {
   /// If [cursor] is null, the choice is deferred to the next annotation behind
   /// this one.
   ///
-  /// See also:
-  ///
-  ///  * [SystemMouseCursors], which is a collection of system cursors of all
-  ///    platforms.
-  final ValueNotifier<PreparedMouseCursor> cursor;
+  /// The change of [cursor] can be listened to on [cursorNotifier].
+  PreparedMouseCursor get cursor => _cursorNotifier.value;
+  set cursor(PreparedMouseCursor value) {
+    _cursorNotifier.value = value;
+  }
+
+  /// Register listeners to get notified whenever [cursor] changes.
+  ChangeNotifier get cursorNotifier => _cursorNotifier;
+  final ValueNotifier<PreparedMouseCursor> _cursorNotifier;
 
   @override
   void debugFillProperties(DiagnosticPropertiesBuilder properties) {
@@ -111,7 +123,12 @@ class MouseTrackerAnnotation extends Diagnosticable {
       },
       ifEmpty: '<none>',
     ));
-    properties.add(DiagnosticsProperty<PreparedMouseCursor>('cursor', cursor?.value, defaultValue: null));
+    properties.add(DiagnosticsProperty<PreparedMouseCursor>('cursor', cursor, defaultValue: null));
+    properties.add(DiagnosticsProperty<ValueNotifier<PreparedMouseCursor>>(
+      'cursorNotifier',
+      _cursorNotifier,
+      level: DiagnosticLevel.fine,
+    ));
   }
 }
 

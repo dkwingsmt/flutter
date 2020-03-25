@@ -2675,7 +2675,6 @@ class RenderMouseRegion extends RenderProxyBox {
        _onEnter = onEnter,
        _onHover = onHover,
        _onExit = onExit,
-       _cursorNotifier = ValueNotifier<PreparedMouseCursor>(cursor),
        _opaque = opaque,
        _annotationIsActive = false,
        super(child) {
@@ -2683,7 +2682,7 @@ class RenderMouseRegion extends RenderProxyBox {
       onEnter: _handleEnter,
       onHover: _handleHover,
       onExit: _handleExit,
-      cursor: _cursorNotifier,
+      cursor: cursor,
     );
   }
 
@@ -2788,7 +2787,7 @@ class RenderMouseRegion extends RenderProxyBox {
   ///  * [MouseCursor], which introduces the mouse cursors.
   ///  * [Layer.findAnnotations], which describes the annotation searching
   ///    algorithm.
-  PreparedMouseCursor get cursor => _cursorNotifier.value;
+  PreparedMouseCursor get cursor => _hoverAnnotation.value;
   set cursor(PreparedMouseCursor value) {
     if (_cursorNotifier.value != value) {
       _cursorNotifier.value = value;
