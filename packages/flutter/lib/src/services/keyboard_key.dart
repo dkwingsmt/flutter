@@ -147,6 +147,24 @@ class LogicalKeyboardKey extends KeyboardKey {
   /// release mode.
   String? get debugName => _debugNames[keyId];
 
+  /// Returns a character that the key represents without any modifiers.
+  ///
+  /// For example, for KeyA it returns `a`, and for Digit1 it returns `1`. For
+  /// non-printable keys, it returns null.
+  ///
+  /// This method only returns an non-empty value in debug mode, and returns null
+  /// in release mode.
+  String? get debugCharacterLabel {
+    String? result;
+    assert(() {
+      if (keyId & ~valueMask == unicodePlane) {
+        result = String.fromCharCode(keyId);
+      }
+      return true;
+    }());
+    return result;
+  }
+
   /// Returns the [LogicalKeyboardKey] constant that matches the given ID, or
   /// null, if not found.
   static LogicalKeyboardKey? findKeyByKeyId(int keyId) => _knownLogicalKeys[keyId];
@@ -230,6 +248,7 @@ class LogicalKeyboardKey extends KeyboardKey {
     super.debugFillProperties(properties);
     properties.add(StringProperty('keyId', '0x${keyId.toRadixString(16).padLeft(8, '0')}', showName: true));
     properties.add(StringProperty('debugName', debugName, showName: true, defaultValue: null));
+    properties.add(StringProperty('debugCharacterLabel', debugCharacterLabel, showName: true, defaultValue: null));
   }
 
   static final Map<int, LogicalKeyboardKey> _additionalKeyPool = <int, LogicalKeyboardKey>{};

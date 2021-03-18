@@ -17,6 +17,11 @@ void main() {
     });
   });
   group(LogicalKeyboardKey, () {
+    test('debugCharacterLabel', () async {
+      expect(LogicalKeyboardKey.keyA.debugCharacterLabel, 'a');
+      expect(LogicalKeyboardKey.digit1.debugCharacterLabel, '1');
+      expect(LogicalKeyboardKey.controlLeft.debugCharacterLabel, null);
+    });
     test('Various classes of keys can be looked up by code', () async {
       // Check a letter key
       expect(LogicalKeyboardKey.findKeyByKeyId(0x0000000061), equals(LogicalKeyboardKey.keyA));
