@@ -131,7 +131,7 @@ class RawKeyEventDataWindows extends RawKeyEventData {
         break;
       case ModifierKey.metaModifier:
         // Windows does not provide an "any" key for win key press.
-        result = _isLeftRightModifierPressed(side, modifierLeftMeta | modifierRightMeta , modifierLeftMeta, modifierRightMeta);
+        result = _isLeftRightModifierPressed(side, modifierLeftMeta | modifierRightMeta, modifierLeftMeta, modifierRightMeta);
         break;
       case ModifierKey.capsLockModifier:
         result = modifiers & modifierCaps != 0;

@@ -110,8 +110,8 @@ void main() {
         );
         await simulateKeyUpEvent(LogicalKeyboardKey.shiftLeft, platform: platform);
         expect(RawKeyboard.instance.keysPressed, isEmpty, reason: 'on $platform');
-        // The Fn key isn't mapped on linux or Windows.
-        if (platform != 'linux' && platform != 'windows' && platform != 'ios') {
+        // The Fn key isn't mapped on these systems
+        if (platform != 'linux' && platform != 'windows' && platform != 'ios' && platform != 'fuchsia') {
           await simulateKeyDownEvent(LogicalKeyboardKey.fn, platform: platform);
           expect(
             RawKeyboard.instance.keysPressed,

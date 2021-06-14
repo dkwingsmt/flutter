@@ -751,24 +751,20 @@ class RawKeyboard {
     // a state change.
 
     final Map<ModifierKey, KeyboardSide?> modifiersPressed = event.data.modifiersPressed;
-    final Map<PhysicalKeyboardKey, LogicalKeyboardKey> modifierKeys = <PhysicalKeyboardKey, LogicalKeyboardKey>{};
-    // Physical keys that whose modifiers are pressed at any side.
-    final Set<PhysicalKeyboardKey> anySideKeys = <PhysicalKeyboardKey>{};
     final Set<PhysicalKeyboardKey> keysPressedAfterEvent = <PhysicalKeyboardKey>{
       ..._keysPressed.keys,
       if (event is RawKeyDownEvent) event.physicalKey,
     };
-    for (final ModifierKey key in modifiersPressed.keys) {
-      if (modifiersPressed[key] == KeyboardSide.any) {
-        final Set<PhysicalKeyboardKey>? thisModifierKeys = _modifierKeyMap[_ModifierSidePair(key, KeyboardSide.all)];
-        anySideKeys.addAll(thisModifierKeys!);
-        if (thisModifierKeys.any(keysPressedAfterEvent.contains)) {
-          continue;
-        }
-      }
-      final Set<PhysicalKeyboardKey>? mappedKeys = _modifierKeyMap[_ModifierSidePair(key, modifiersPressed[key])];
-      assert((){
-        if (mappedKeys == null) {
+    if (event is RawKeyUpEvent)
+      keysPressedAfterEvent.remove(event.physicalKey);
+    for (final ModifierKey key in ModifierKey.values) {
+      final KeyboardSide? trueSide = modifiersPressed[key];
+      final Set<PhysicalKeyboardKey>? thisKeys = _modifierKeyMap[_ModifierSidePair(key, KeyboardSide.all)];
+      final Set<PhysicalKeyboardKey>? mappedKeys = modifiersPressed[key] == null
+          ? <PhysicalKeyboardKey>{}
+          : _modifierKeyMap[_ModifierSidePair(key, modifiersPressed[key])];
+      if (thisKeys == null || mappedKeys == null) {
+        assert((){
           debugPrint(
             'Platform key support for ${Platform.operatingSystem} is '
             'producing unsupported modifier combinations for '
@@ -777,24 +773,25 @@ class RawKeyboard {
           if (event.data is RawKeyEventDataAndroid) {
             debugPrint('Android raw key metaState: ${(event.data as RawKeyEventDataAndroid).metaState}');
           }
-        }
-        return true;
-      }());
-      if (mappedKeys == null) {
+          return true;
+        }());
         continue;
       }
-      for (final PhysicalKeyboardKey physicalModifier in mappedKeys) {
-        modifierKeys[physicalModifier] = _allModifiers[physicalModifier]!;
+      // If invalidAny is true, then this modifier requires "any" and has no
+      // sides pressed.
+      if (trueSide == KeyboardSide.any) {
+        if (!thisKeys.any(keysPressedAfterEvent.contains)) {
+          for (final PhysicalKeyboardKey physicalModifier in mappedKeys) {
+            _keysPressed[physicalModifier] = _allModifiers[physicalModifier]!;
+          }
+        }
+      } else {
+        thisKeys.difference(mappedKeys).forEach(_keysPressed.remove);
+        for (final PhysicalKeyboardKey physicalModifier in mappedKeys) {
+          _keysPressed[physicalModifier] = _allModifiers[physicalModifier]!;
+        }
       }
     }
-    _allModifiersExceptFn.keys
-      .where((PhysicalKeyboardKey key) => !anySideKeys.contains(key))
-      .forEach(_keysPressed.remove);
-    if (event.data is! RawKeyEventDataFuchsia && event.data is! RawKeyEventDataMacOs) {
-      // On Fuchsia and macOS, the Fn key is not considered a modifier key.
-      _keysPressed.remove(PhysicalKeyboardKey.fn);
-    }
-    _keysPressed.addAll(modifierKeys);
   }
 
   final Map<PhysicalKeyboardKey, LogicalKeyboardKey> _keysPressed = <PhysicalKeyboardKey, LogicalKeyboardKey>{};
