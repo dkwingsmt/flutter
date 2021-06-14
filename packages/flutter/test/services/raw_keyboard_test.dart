@@ -1573,6 +1573,60 @@ void main() {
       expect(lastHandled, true);
       expect(RawKeyboard.instance.keysPressed, isEmpty);
     });
+
+    testWidgets('Win32 IME switching does not hinder Backspace', (WidgetTester tester) async {
+      final List<RawKeyEvent> events = <RawKeyEvent>[];
+      RawKeyboard.instance.addListener(events.add);
+
+      Future<void> simulateKeyEventMessage(String type, int keyCode, int scanCode, int characterCodePoint, int modifiers) {
+        return ServicesBinding.instance!.defaultBinaryMessenger.handlePlatformMessage(
+          SystemChannels.keyEvent.name,
+          SystemChannels.keyEvent.codec.encodeMessage(<String, dynamic>{
+            'type': type,
+            'keymap': 'windows',
+            'keyCode': keyCode,
+            'scanCode': scanCode,
+            'modifiers': modifiers,
+            'characterCodePoint': characterCodePoint,
+          }),
+          null,
+        );
+      }
+
+      // The following event data sequence is recorded on real device, where
+      // the user presses LWin+Space to switch input methods, then presses backspace.
+
+      // Meta down
+      await simulateKeyEventMessage('keydown', 91, 91, 0, 512);
+      expect(events.length, 1);
+      expect(events[0], isA<RawKeyDownEvent>());
+      expect(events[0].physicalKey, PhysicalKeyboardKey.metaLeft);
+      expect(events[0].logicalKey, LogicalKeyboardKey.metaLeft);
+      expect(RawKeyboard.instance.keysPressed, isEmpty);
+      events.clear();
+
+      // Ctrl up
+      await simulateKeyEventMessage('keyup', 162, 29, 0, 0);
+      expect(RawKeyboard.instance.keysPressed, isEmpty);
+      events.clear();
+
+      // Backspace down
+      await simulateKeyEventMessage('keydown', 8, 14, 8, 0);
+      expect(events.length, 1);
+      expect(events[0], isA<RawKeyDownEvent>());
+      expect(events[0].physicalKey, PhysicalKeyboardKey.backspace);
+      expect(events[0].logicalKey, LogicalKeyboardKey.backspace);
+      events.clear();
+
+      // Backspace up
+      await simulateKeyEventMessage('keyup', 8, 14, 8, 0);
+      expect(events.length, 1);
+      expect(events[0], isA<RawKeyUpEvent>());
+      expect(events[0].physicalKey, PhysicalKeyboardKey.backspace);
+      expect(events[0].logicalKey, LogicalKeyboardKey.backspace);
+      expect(RawKeyboard.instance.keysPressed, isEmpty);
+      events.clear();
+    });
   }, skip: isBrowser); // This is a Windows-specific group.
 
   group('RawKeyEventDataLinux-GFLW', () {
