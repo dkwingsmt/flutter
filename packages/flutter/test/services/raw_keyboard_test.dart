@@ -1574,6 +1574,7 @@ void main() {
       expect(RawKeyboard.instance.keysPressed, isEmpty);
     });
 
+    // Regression test for https://github.com/flutter/flutter/pull/84292
     testWidgets('Win32 IME switching does not hinder Backspace', (WidgetTester tester) async {
       final List<RawKeyEvent> events = <RawKeyEvent>[];
       RawKeyboard.instance.addListener(events.add);
@@ -1593,25 +1594,29 @@ void main() {
         );
       }
 
-      // The following event data sequence is recorded on real device, where
+      // The following event data sequence is recorded on a real device, where
       // the user presses LWin+Space to switch input methods, then presses backspace.
 
       // Meta down
-      await simulateKeyEventMessage('keydown', 91, 91, 0, 512);
+      await simulateKeyEventMessage('keydown', 0x5B, 0xE05B, 0, 512);
       expect(events.length, 1);
       expect(events[0], isA<RawKeyDownEvent>());
       expect(events[0].physicalKey, PhysicalKeyboardKey.metaLeft);
       expect(events[0].logicalKey, LogicalKeyboardKey.metaLeft);
-      expect(RawKeyboard.instance.keysPressed, isEmpty);
+      expect(RawKeyboard.instance.keysPressed, <LogicalKeyboardKey>{LogicalKeyboardKey.metaLeft});
       events.clear();
 
-      // Ctrl up
-      await simulateKeyEventMessage('keyup', 162, 29, 0, 0);
+      // Ctrl up. For unknown reason Win32 sends Ctrl up for the LWin release.
+      await simulateKeyEventMessage('keyup', 0xA2, 0x1D, 0, 0);
+      expect(events.length, 1);
+      expect(events[0], isA<RawKeyUpEvent>());
+      expect(events[0].physicalKey, PhysicalKeyboardKey.controlLeft);
+      expect(events[0].logicalKey, LogicalKeyboardKey.controlLeft);
       expect(RawKeyboard.instance.keysPressed, isEmpty);
       events.clear();
 
       // Backspace down
-      await simulateKeyEventMessage('keydown', 8, 14, 8, 0);
+      await simulateKeyEventMessage('keydown', 0x8, 0xE, 8, 0);
       expect(events.length, 1);
       expect(events[0], isA<RawKeyDownEvent>());
       expect(events[0].physicalKey, PhysicalKeyboardKey.backspace);
@@ -1619,7 +1624,7 @@ void main() {
       events.clear();
 
       // Backspace up
-      await simulateKeyEventMessage('keyup', 8, 14, 8, 0);
+      await simulateKeyEventMessage('keyup', 0x8, 0xE, 8, 0);
       expect(events.length, 1);
       expect(events[0], isA<RawKeyUpEvent>());
       expect(events[0].physicalKey, PhysicalKeyboardKey.backspace);

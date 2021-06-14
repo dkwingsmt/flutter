@@ -764,17 +764,7 @@ class RawKeyboard {
           ? <PhysicalKeyboardKey>{}
           : _modifierKeyMap[_ModifierSidePair(key, modifiersPressed[key])];
       if (thisKeys == null || mappedKeys == null) {
-        assert((){
-          debugPrint(
-            'Platform key support for ${Platform.operatingSystem} is '
-            'producing unsupported modifier combinations for '
-            'modifier $key on side ${modifiersPressed[key]}.',
-          );
-          if (event.data is RawKeyEventDataAndroid) {
-            debugPrint('Android raw key metaState: ${(event.data as RawKeyEventDataAndroid).metaState}');
-          }
-          return true;
-        }());
+        // Unsupported keys.
         continue;
       }
       // If invalidAny is true, then this modifier requires "any" and has no
