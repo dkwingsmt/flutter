@@ -20,10 +20,15 @@ void main() {
       // ignore: prefer_const_constructors, intentionally test if a const key is equal to a non-const key
       expect(const PhysicalKeyboardKey(0x12345) == PhysicalKeyboardKey(0x12345), true);
     });
+    test('Key labels', () async {
+      expect(PhysicalKeyboardKey.keyA.keyLabel, 'Key A');
+      expect(PhysicalKeyboardKey.backslash.keyLabel, 'Backslash');
+      expect(const PhysicalKeyboardKey(0x12345).keyLabel, '');
+    });
     test('debugNames', () async {
       expect(PhysicalKeyboardKey.keyA.debugName, 'Key A');
       expect(PhysicalKeyboardKey.backslash.debugName, 'Backslash');
-      expect(const PhysicalKeyboardKey(0x12345).debugName, 'Key with ID 0x00012345');
+      expect(const PhysicalKeyboardKey(0x12345).debugName, 'HID 0x12345');
     });
   });
   group(LogicalKeyboardKey, () {
