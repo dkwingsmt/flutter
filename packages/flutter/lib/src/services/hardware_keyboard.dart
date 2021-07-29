@@ -789,6 +789,7 @@ class KeyEventManager {
       case KeyDataTransitMode.keyDataThenRawKeyData:
         assert((data.physical == 0 && data.logical == 0) ||
                (data.physical != 0 && data.logical != 0));
+        print('KeyData $data');
         // Postpone key event dispatching until the handleRawKeyMessage.
         //
         // Having 0 as the physical or logical ID indicates an empty key data,
