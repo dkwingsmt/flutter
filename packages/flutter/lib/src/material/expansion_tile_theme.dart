@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
@@ -123,7 +122,7 @@ class ExpansionTileThemeData with Diagnosticable {
 
   @override
   int get hashCode {
-    return hashValues(
+    return Object.hash(
       backgroundColor,
       collapsedBackgroundColor,
       tilePadding,

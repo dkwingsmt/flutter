@@ -1648,9 +1648,8 @@ class FocusManager with DiagnosticableTreeMixin, ChangeNotifier {
         expectedMode = FocusHighlightMode.touch;
         break;
       case PointerDeviceKind.mouse:
+      case PointerDeviceKind.trackpad:
       case PointerDeviceKind.unknown:
-      default: // ignore: no_default_cases, to allow adding new device types to [PointerDeviceKind]
-               // TODO(moffatman): Remove after landing https://github.com/flutter/flutter/issues/23604
         _lastInteractionWasTouch = false;
         expectedMode = FocusHighlightMode.traditional;
         break;
@@ -1749,7 +1748,7 @@ class FocusManager with DiagnosticableTreeMixin, ChangeNotifier {
     }
   }
 
-  // The list of autofocus requests made since the last _appyFocusChange call.
+  // The list of autofocus requests made since the last _applyFocusChange call.
   final List<_Autofocus> _pendingAutofocuses = <_Autofocus>[];
 
   // True indicates that there is an update pending.

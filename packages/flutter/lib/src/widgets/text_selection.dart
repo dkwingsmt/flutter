@@ -142,7 +142,9 @@ abstract class TextSelectionControls {
     Offset position,
     List<TextSelectionPoint> endpoints,
     TextSelectionDelegate delegate,
-    ClipboardStatusNotifier clipboardStatus,
+    // TODO(chunhtai): Change to ValueListenable<ClipboardStatus>? once
+    // mirgration is done. https://github.com/flutter/flutter/issues/99360
+    ClipboardStatusNotifier? clipboardStatus,
     Offset? lastSecondaryTapDownPosition,
   );
 
@@ -199,18 +201,20 @@ abstract class TextSelectionControls {
   ///
   /// This is called by subclasses when their cut affordance is activated by
   /// the user.
-  void handleCut(TextSelectionDelegate delegate, ClipboardStatusNotifier? clipboardStatus) {
+  // TODO(chunhtai): remove optional parameter once migration is done.
+  // https://github.com/flutter/flutter/issues/99360
+  void handleCut(TextSelectionDelegate delegate, [ClipboardStatusNotifier? clipboardStatus]) {
     delegate.cutSelection(SelectionChangedCause.toolbar);
-    clipboardStatus?.update();
   }
 
   /// Call [TextSelectionDelegate.copySelection] to copy current selection.
   ///
   /// This is called by subclasses when their copy affordance is activated by
   /// the user.
-  void handleCopy(TextSelectionDelegate delegate, ClipboardStatusNotifier? clipboardStatus) {
+  // TODO(chunhtai): remove optional parameter once migration is done.
+  // https://github.com/flutter/flutter/issues/99360
+  void handleCopy(TextSelectionDelegate delegate, [ClipboardStatusNotifier? clipboardStatus]) {
     delegate.copySelection(SelectionChangedCause.toolbar);
-    clipboardStatus?.update();
   }
 
   /// Call [TextSelectionDelegate.pasteText] to paste text.
@@ -298,6 +302,13 @@ class TextSelectionOverlay {
       toolbarLocation: renderObject.lastSecondaryTapDownPosition,
     );
   }
+
+  /// Controls the fade-in and fade-out animations for the toolbar and handles.
+  @Deprecated(
+    'Use `SelectionOverlay.fadeDuration` instead. '
+    'This feature was deprecated after v2.12.0-4.1.pre.'
+  )
+  static const Duration fadeDuration = SelectionOverlay.fadeDuration;
 
   // TODO(mpcomplete): what if the renderObject is removed or replaced, or
   // moves? Not sure what cases I need to handle, or how to handle them.
@@ -1080,7 +1091,7 @@ class _SelectionToolbarOverlayState extends State<_SelectionToolbarOverlay> with
               widget.midpoint,
               widget.selectionEndpoints,
               widget.selectionDelegate!,
-              widget.clipboardStatus!,
+              widget.clipboardStatus,
               widget.toolbarLocation,
             );
           },
@@ -1514,6 +1525,7 @@ class TextSelectionGestureDetectorBuilder {
         case TargetPlatform.macOS:
           switch (details.kind) {
             case PointerDeviceKind.mouse:
+            case PointerDeviceKind.trackpad:
             case PointerDeviceKind.stylus:
             case PointerDeviceKind.invertedStylus:
               // Precise devices should place the cursor at a precise position.
@@ -1521,8 +1533,6 @@ class TextSelectionGestureDetectorBuilder {
               break;
             case PointerDeviceKind.touch:
             case PointerDeviceKind.unknown:
-            default: // ignore: no_default_cases, to allow adding new device types to [PointerDeviceKind]
-                     // TODO(moffatman): Remove after landing https://github.com/flutter/flutter/issues/23604
               // On macOS/iOS/iPadOS a touch tap places the cursor at the edge
               // of the word.
               renderEditable.selectWordEdge(cause: SelectionChangedCause.tap);
@@ -2131,6 +2141,8 @@ class ClipboardStatusNotifier extends ValueNotifier<ClipboardStatus> with Widget
   }) : super(value);
 
   bool _disposed = false;
+  // TODO(chunhtai): remove this getter once migration is done.
+  // https://github.com/flutter/flutter/issues/99360
   /// True if this instance has been disposed.
   bool get disposed => _disposed;
 
@@ -2183,7 +2195,7 @@ class ClipboardStatusNotifier extends ValueNotifier<ClipboardStatus> with Widget
   @override
   void removeListener(VoidCallback listener) {
     super.removeListener(listener);
-    if (!hasListeners) {
+    if (!_disposed && !hasListeners) {
       WidgetsBinding.instance.removeObserver(this);
     }
   }
@@ -2203,9 +2215,9 @@ class ClipboardStatusNotifier extends ValueNotifier<ClipboardStatus> with Widget
 
   @override
   void dispose() {
-    super.dispose();
     WidgetsBinding.instance.removeObserver(this);
     _disposed = true;
+    super.dispose();
   }
 }
 

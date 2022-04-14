@@ -1897,7 +1897,7 @@ class ShaderMaskLayer extends ContainerLayer {
     super.debugFillProperties(properties);
     properties.add(DiagnosticsProperty<Shader>('shader', shader));
     properties.add(DiagnosticsProperty<Rect>('maskRect', maskRect));
-    properties.add(DiagnosticsProperty<BlendMode>('blendMode', blendMode));
+    properties.add(EnumProperty<BlendMode>('blendMode', blendMode));
   }
 }
 
@@ -1955,6 +1955,13 @@ class BackdropFilterLayer extends ContainerLayer {
     );
     addChildrenToScene(builder);
     builder.pop();
+  }
+
+  @override
+  void debugFillProperties(DiagnosticPropertiesBuilder properties) {
+    super.debugFillProperties(properties);
+    properties.add(DiagnosticsProperty<ui.ImageFilter>('filter', filter));
+    properties.add(EnumProperty<BlendMode>('blendMode', blendMode));
   }
 }
 
@@ -2511,7 +2518,7 @@ class FollowerLayer extends ContainerLayer {
     final Matrix4 forwardTransform = _collectTransformForLayerChain(forwardLayers);
     // Further transforms the coordinate system to a hypothetical child (null)
     // of the leader layer, to account for the leader's additional paint offset
-    // and layer offset (LeaderLayer._lastOffset).
+    // and layer offset (LeaderLayer.offset).
     leader.applyTransform(null, forwardTransform);
     forwardTransform.translate(linkedOffset!.dx, linkedOffset!.dy);
 
@@ -2553,13 +2560,13 @@ class FollowerLayer extends ContainerLayer {
     }
     _establishTransform();
     if (_lastTransform != null) {
+      _lastOffset = unlinkedOffset;
       engineLayer = builder.pushTransform(
         _lastTransform!.storage,
         oldLayer: _engineLayer as ui.TransformEngineLayer?,
       );
       addChildrenToScene(builder);
       builder.pop();
-      _lastOffset = unlinkedOffset;
     } else {
       _lastOffset = null;
       final Matrix4 matrix = Matrix4.translationValues(unlinkedOffset!.dx, unlinkedOffset!.dy, .0);

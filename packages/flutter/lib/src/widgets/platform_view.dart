@@ -15,7 +15,7 @@ import 'framework.dart';
 
 /// Embeds an Android view in the Widget hierarchy.
 ///
-/// Requires Android API level 20 or greater.
+/// Requires Android API level 23 or greater.
 ///
 /// Embedding Android views is an expensive operation and should be avoided when a Flutter
 /// equivalent is possible.
@@ -546,7 +546,7 @@ class _AndroidViewState extends State<AndroidView> {
     }
     SystemChannels.textInput.invokeMethod<void>(
       'TextInput.setPlatformViewClient',
-      <String, dynamic>{'platformViewId': _id, 'usesVirtualDisplay': true},
+      <String, dynamic>{'platformViewId': _id},
     ).catchError((dynamic e) {
       if (e is MissingPluginException) {
         // We land the framework part of Android platform views keyboard
@@ -681,7 +681,7 @@ class _AndroidPlatformView extends LeafRenderObjectWidget {
 
   @override
   void updateRenderObject(BuildContext context, RenderAndroidView renderObject) {
-    renderObject.viewController = controller;
+    renderObject.controller = controller;
     renderObject.hitTestBehavior = hitTestBehavior;
     renderObject.updateGestureRecognizers(gestureRecognizers);
     renderObject.clipBehavior = clipBehavior;
@@ -805,7 +805,6 @@ typedef CreatePlatformViewCallback = PlatformViewController Function(PlatformVie
 /// The `surfaceFactory` and the `onCreatePlatformView` are only called when the
 /// state of this widget is initialized, or when the `viewType` changes.
 class PlatformViewLink extends StatefulWidget {
-
   /// Construct a [PlatformViewLink] widget.
   ///
   /// The `surfaceFactory` and the `onCreatePlatformView` must not be null.
@@ -848,8 +847,12 @@ class _PlatformViewLinkState extends State<PlatformViewLink> {
 
   @override
   Widget build(BuildContext context) {
-    if (!_platformViewCreated) {
+    if (_controller == null) {
       return const SizedBox.expand();
+    }
+    if (!_platformViewCreated) {
+      // Depending on the platform, the initial size can be used to size the platform view.
+      return _PlatformViewPlaceHolder(onLayout: (Size size) => _controller!.create(size: size));
     }
     _surface ??= widget._surfaceFactory(context, _controller!);
     return Focus(
@@ -875,9 +878,6 @@ class _PlatformViewLinkState extends State<PlatformViewLink> {
       // The _surface has to be recreated as its controller is disposed.
       // Setting _surface to null will trigger its creation in build().
       _surface = null;
-
-      // We are about to create a new platform view.
-      _platformViewCreated = false;
       _initialize();
     }
   }
@@ -895,7 +895,9 @@ class _PlatformViewLinkState extends State<PlatformViewLink> {
   }
 
   void _onPlatformViewCreated(int id) {
-    setState(() { _platformViewCreated = true; });
+    setState(() {
+      _platformViewCreated = true;
+    });
   }
 
   void _handleFrameworkFocusChanged(bool isFocused) {
@@ -1020,18 +1022,18 @@ class PlatformViewSurface extends LeafRenderObjectWidget {
 
 /// Integrates an Android view with Flutter's compositor, touch, and semantics subsystems.
 ///
-/// The compositor integration is done by adding a [PlatformViewLayer] to the layer tree. [PlatformViewLayer]
-/// isn't supported on all platforms. Custom Flutter embedders can support
-/// [PlatformViewLayer]s by implementing a SystemCompositor.
+/// The compositor integration is done by adding a [TextureLayer] to the layer tree.
 ///
-/// The widget fills all available space, the parent of this object must provide bounded layout
-/// constraints.
+/// The parent of this object must provide bounded layout constraints.
 ///
 /// If the associated platform view is not created, the [AndroidViewSurface] does not paint any contents.
 ///
+/// When possible, you may want to use [AndroidView] directly, since it requires less boilerplate code
+/// than [AndroidViewSurface], and there's no difference in performance, or other trade-off(s).
+///
 /// See also:
 ///
-///  * [AndroidView] which embeds an Android platform view in the widget hierarchy using a [TextureLayer].
+///  * [AndroidView] which embeds an Android platform view in the widget hierarchy.
 ///  * [UiKitView] which embeds an iOS platform view in the widget hierarchy.
 class AndroidViewSurface extends PlatformViewSurface {
   /// Construct an `AndroidPlatformViewSurface`.
@@ -1052,12 +1054,71 @@ class AndroidViewSurface extends PlatformViewSurface {
 
   @override
   RenderObject createRenderObject(BuildContext context) {
-    final PlatformViewRenderBox renderBox =
-        super.createRenderObject(context) as PlatformViewRenderBox;
-
-    (controller as AndroidViewController).pointTransformer =
+    final AndroidViewController viewController = controller as AndroidViewController;
+    // Compose using the Android view hierarchy.
+    // This is useful when embedding a SurfaceView into a Flutter app.
+    // SurfaceViews cannot be composed using GL textures.
+    if (viewController is ExpensiveAndroidViewController) {
+      final PlatformViewRenderBox renderBox =
+          super.createRenderObject(context) as PlatformViewRenderBox;
+      viewController.pointTransformer =
+          (Offset position) => renderBox.globalToLocal(position);
+      return renderBox;
+    }
+    // Use GL texture based composition.
+    // App should use GL texture unless they require to embed a SurfaceView.
+    final RenderAndroidView renderBox = RenderAndroidView(
+      viewController: viewController,
+      gestureRecognizers: gestureRecognizers,
+      hitTestBehavior: hitTestBehavior,
+    );
+    viewController.pointTransformer =
         (Offset position) => renderBox.globalToLocal(position);
-
     return renderBox;
+  }
+}
+
+/// A callback used to notify the size of the platform view placeholder.
+/// This size is the initial size of the platform view.
+typedef _OnLayoutCallback = void Function(Size size);
+
+/// A [RenderBox] that notifies its size to the owner after a layout.
+class _PlatformViewPlaceholderBox extends RenderConstrainedBox {
+  _PlatformViewPlaceholderBox({
+    required this.onLayout,
+  }) : super(additionalConstraints: const BoxConstraints.tightFor(
+      width: double.infinity,
+      height: double.infinity,
+    ));
+
+  _OnLayoutCallback onLayout;
+
+  @override
+  void performLayout() {
+    super.performLayout();
+    onLayout(size);
+  }
+}
+
+/// When a platform view is in the widget hierarchy, this widget is used to capture
+/// the size of the platform view after the first layout.
+/// This placeholder is basically a [SizedBox.expand] with a [onLayout] callback to
+/// notify the size of the render object to its parent.
+class _PlatformViewPlaceHolder extends SingleChildRenderObjectWidget {
+  const _PlatformViewPlaceHolder({
+    Key? key,
+    required this.onLayout,
+  }) : super(key: key);
+
+  final _OnLayoutCallback onLayout;
+
+  @override
+  _PlatformViewPlaceholderBox createRenderObject(BuildContext context) {
+    return _PlatformViewPlaceholderBox(onLayout: onLayout);
+  }
+
+  @override
+  void updateRenderObject(BuildContext context, _PlatformViewPlaceholderBox renderObject) {
+    renderObject.onLayout = onLayout;
   }
 }

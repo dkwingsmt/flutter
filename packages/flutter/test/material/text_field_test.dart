@@ -286,6 +286,27 @@ void main() {
     skip: isContextMenuProvidedByPlatform, // [intended] only applies to platforms where we supply the context menu.
   );
 
+  testWidgets('uses DefaultSelectionStyle for selection and cursor colors if provided', (WidgetTester tester) async {
+    const Color selectionColor = Colors.orange;
+    const Color cursorColor = Colors.red;
+
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Material(
+          child: DefaultSelectionStyle(
+            selectionColor: selectionColor,
+            cursorColor: cursorColor,
+            child: TextField(autofocus: true),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    final EditableTextState state = tester.state<EditableTextState>(find.byType(EditableText));
+    expect(state.widget.selectionColor, selectionColor);
+    expect(state.widget.cursorColor, cursorColor);
+  });
+
   testWidgets('Activates the text field when receives semantics focus on Mac, Windows', (WidgetTester tester) async {
     final SemanticsTester semantics = SemanticsTester(tester);
     final SemanticsOwner semanticsOwner = tester.binding.pipelineOwner.semanticsOwner!;
@@ -4290,7 +4311,7 @@ void main() {
     expect(textController.text, '#一#二#三#四#五');
   });
 
-  testWidgets("maxLength isn't enforced when maxLengthEnforced is false.", (WidgetTester tester) async {
+  testWidgets("maxLength isn't enforced when maxLengthEnforcement.none.", (WidgetTester tester) async {
     final TextEditingController textController = TextEditingController();
 
     await tester.pumpWidget(boilerplate(
@@ -4305,7 +4326,7 @@ void main() {
     expect(textController.text, '0123456789101112');
   });
 
-  testWidgets('maxLength shows warning when maxLengthEnforced is false.', (WidgetTester tester) async {
+  testWidgets('maxLength shows warning when maxLengthEnforcement.none.', (WidgetTester tester) async {
     final TextEditingController textController = TextEditingController();
     const TextStyle testStyle = TextStyle(color: Colors.deepPurpleAccent);
 
@@ -4335,7 +4356,7 @@ void main() {
     expect(counterTextWidget.style!.color, isNot(equals(Colors.deepPurpleAccent)));
   });
 
-  testWidgets('maxLength shows warning when maxLengthEnforced is false with surrogate pairs.', (WidgetTester tester) async {
+  testWidgets('maxLength shows warning when maxLengthEnforcement.none with surrogate pairs.', (WidgetTester tester) async {
     final TextEditingController textController = TextEditingController();
     const TextStyle testStyle = TextStyle(color: Colors.deepPurpleAccent);
 
@@ -4365,7 +4386,7 @@ void main() {
     expect(counterTextWidget.style!.color, isNot(equals(Colors.deepPurpleAccent)));
   });
 
-  testWidgets('maxLength shows warning when maxLengthEnforced is false with grapheme clusters.', (WidgetTester tester) async {
+  testWidgets('maxLength shows warning when maxLengthEnforcement.none with grapheme clusters.', (WidgetTester tester) async {
     final TextEditingController textController = TextEditingController();
     const TextStyle testStyle = TextStyle(color: Colors.deepPurpleAccent);
 
@@ -10027,6 +10048,45 @@ void main() {
     await gesture.moveTo(center);
   });
 
+  testWidgets('Text selection menu does not change mouse cursor when hovered', (WidgetTester tester) async {
+    final TextEditingController controller = TextEditingController(
+      text: 'Atwater Peel Sherbrooke Bonaventure',
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Material(
+          child: MouseRegion(
+            cursor: SystemMouseCursors.forbidden,
+            child: TextField(
+              controller: controller,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Copy'), findsNothing);
+
+    final TestGesture gesture = await tester.startGesture(
+      textOffsetToPosition(tester, 3),
+      kind: PointerDeviceKind.mouse,
+      buttons: kSecondaryMouseButton,
+    );
+    addTearDown(gesture.removePointer);
+    await tester.pump();
+    await gesture.up();
+    await tester.pumpAndSettle();
+
+    expect(RendererBinding.instance.mouseTracker.debugDeviceActiveCursor(1), SystemMouseCursors.text);
+    expect(find.text('Copy'), findsOneWidget);
+
+    await gesture.moveTo(tester.getCenter(find.text('Copy')));
+    expect(RendererBinding.instance.mouseTracker.debugDeviceActiveCursor(1), SystemMouseCursors.basic);
+  },
+    variant: TargetPlatformVariant.desktop(),
+    skip: isContextMenuProvidedByPlatform, // [intended] only applies to platforms where we supply the context menu.
+  );
+
   testWidgets('Caret rtl with changing width', (WidgetTester tester) async {
     late StateSetter setState;
     bool isWide = false;
@@ -10085,6 +10145,56 @@ void main() {
     expect(inputWidth, wideWidth);
     expect(cursorRight, inputWidth - kCaretGap);
   });
+
+  testWidgets('Text selection menu hides after select all on desktop', (WidgetTester tester) async {
+    final TextEditingController controller = TextEditingController(
+      text: 'Atwater Peel Sherbrooke Bonaventure',
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Material(
+          child: TextField(
+            controller: controller,
+          ),
+        ),
+      ),
+    );
+
+    final String selectAll = defaultTargetPlatform == TargetPlatform.macOS
+        ? 'Select All'
+        : 'Select all';
+
+    expect(find.text(selectAll), findsNothing);
+    expect(find.text('Copy'), findsNothing);
+
+    final TestGesture gesture = await tester.startGesture(
+      const Offset(10.0, 0.0) + textOffsetToPosition(tester, controller.text.length),
+      kind: PointerDeviceKind.mouse,
+      buttons: kSecondaryMouseButton,
+    );
+    addTearDown(gesture.removePointer);
+    await tester.pump();
+    await gesture.up();
+    await tester.pumpAndSettle();
+
+    expect(
+      controller.value.selection,
+      TextSelection.collapsed(
+        offset: controller.text.length,
+        affinity: TextAffinity.upstream,
+      ),
+    );
+    expect(find.text(selectAll), findsOneWidget);
+
+    await tester.tapAt(tester.getCenter(find.text(selectAll)));
+
+    await tester.pump();
+    expect(find.text(selectAll), findsNothing);
+    expect(find.text('Copy'), findsNothing);
+  },
+    variant: TargetPlatformVariant.desktop(),
+    skip: isContextMenuProvidedByPlatform, // [intended] only applies to platforms where we supply the context menu.
+  );
 
   // Regressing test for https://github.com/flutter/flutter/issues/70625
   testWidgets('TextFields can inherit [FloatingLabelBehaviour] from InputDecorationTheme.', (WidgetTester tester) async {
@@ -10275,11 +10385,11 @@ void main() {
             onTap: () { textFieldTapCount += 1; },
             decoration: InputDecoration(
               labelText: 'Label',
-              prefix: RaisedButton(
+              prefix: ElevatedButton(
                 onPressed: () { prefixTapCount += 1; },
                 child: const Text('prefix'),
               ),
-              suffix: RaisedButton(
+              suffix: ElevatedButton(
                 onPressed: () { suffixTapCount += 1; },
                 child: const Text('suffix'),
               ),
