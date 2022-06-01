@@ -860,7 +860,7 @@ class Shortcuts extends StatefulWidget {
   /// If this widget was created with [Shortcuts.manager], then
   /// [ShortcutManager.shortcuts] will be used as the source for shortcuts. If
   /// the unnamed constructor is used, this manager will be null, and a
-  /// default-constructed [ShortcutManager] will be used.
+  /// default-constructed `ShortcutsManager` will be used.
   final ShortcutManager? manager;
 
   /// {@template flutter.widgets.shortcuts.shortcuts}
@@ -944,8 +944,26 @@ class _ShortcutsState extends State<Shortcuts> {
       debugLabel: '$Shortcuts',
       canRequestFocus: false,
       onKey: _handleOnKey,
-      child: widget.child,
+      child: _ShortcutsMarker(
+        manager: manager,
+        child: widget.child,
+      ),
     );
+  }
+}
+
+class _ShortcutsMarker extends InheritedWidget {
+  const _ShortcutsMarker({
+    required this.manager,
+    required super.child,
+  })  : assert(manager != null),
+        assert(child != null);
+
+  final ShortcutManager manager;
+
+  @override
+  bool updateShouldNotify(_ShortcutsMarker oldWidget) {
+    return manager != oldWidget.manager;
   }
 }
 
