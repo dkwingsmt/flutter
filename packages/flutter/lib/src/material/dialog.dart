@@ -2,10 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import 'dart:ui';
+import 'dart:ui' show clampDouble, lerpDouble;
 
 import 'package:flutter/cupertino.dart';
-import 'package:flutter/foundation.dart' show clampDouble;
 
 import 'color_scheme.dart';
 import 'colors.dart';
@@ -23,8 +22,6 @@ import 'theme_data.dart';
 // late BuildContext context;
 
 const EdgeInsets _defaultInsetPadding = EdgeInsets.symmetric(horizontal: 40.0, vertical: 24.0);
-
-const BoxConstraints _dialogConstraints = BoxConstraints(minWidth: 280.0, maxWidth: 560.0, maxHeight: 560.0);
 
 /// A Material Design dialog.
 ///
@@ -185,7 +182,7 @@ class Dialog extends StatelessWidget {
   /// See the enum [Clip] for details of all possible options and their common
   /// use cases.
   ///
-  /// Defaults to [Clip.none], and must not be null.
+  /// Defaults to [Clip.none].
   /// {@endtemplate}
   final Clip clipBehavior;
 
@@ -234,7 +231,7 @@ class Dialog extends StatelessWidget {
       dialogChild = Align(
         alignment: alignment ?? dialogTheme.alignment ?? defaults.alignment!,
         child: ConstrainedBox(
-          constraints: _constraintsScaleFactor(MediaQuery.of(context).textScaleFactor, theme.useMaterial3),
+          constraints: const BoxConstraints(minWidth: 280.0),
           child: Material(
             color: backgroundColor ?? dialogTheme.backgroundColor ?? Theme.of(context).dialogBackgroundColor,
             elevation: elevation ?? dialogTheme.elevation ?? defaults.elevation!,
@@ -721,7 +718,9 @@ class AlertDialog extends StatelessWidget {
 
     // The paddingScaleFactor is used to adjust the padding of Dialog's
     // children.
-    final double paddingScaleFactor = _paddingScaleFactor(MediaQuery.textScaleFactorOf(context));
+    const double fontSizeToScale = 14.0;
+    final double effectiveTextScale = MediaQuery.textScalerOf(context).scale(fontSizeToScale) / fontSizeToScale;
+    final double paddingScaleFactor = _scalePadding(effectiveTextScale);
     final TextDirection? textDirection = Directionality.maybeOf(context);
 
     Widget? iconWidget;
@@ -932,7 +931,7 @@ class _AdaptiveAlertDialog extends AlertDialog {
   @override
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
-    switch(theme.platform) {
+    switch (theme.platform) {
       case TargetPlatform.android:
       case TargetPlatform.fuchsia:
       case TargetPlatform.linux:
@@ -1099,8 +1098,6 @@ class SimpleDialog extends StatelessWidget {
   /// Creates a simple dialog.
   ///
   /// Typically used in conjunction with [showDialog].
-  ///
-  /// The [titlePadding] and [contentPadding] arguments must not be null.
   const SimpleDialog({
     super.key,
     this.title,
@@ -1218,7 +1215,11 @@ class SimpleDialog extends StatelessWidget {
 
     // The paddingScaleFactor is used to adjust the padding of Dialog
     // children.
-    final double paddingScaleFactor = _paddingScaleFactor(MediaQuery.textScaleFactorOf(context));
+    final TextStyle defaultTextStyle = titleTextStyle ?? DialogTheme.of(context).titleTextStyle ?? theme.textTheme.titleLarge!;
+    final double fontSize = defaultTextStyle.fontSize ?? kDefaultFontSize;
+    final double fontSizeToScale = fontSize == 0.0 ? kDefaultFontSize : fontSize;
+    final double effectiveTextScale = MediaQuery.textScalerOf(context).scale(fontSizeToScale) / fontSizeToScale;
+    final double paddingScaleFactor = _scalePadding(effectiveTextScale);
     final TextDirection? textDirection = Directionality.maybeOf(context);
 
     Widget? titleWidget;
@@ -1232,7 +1233,7 @@ class SimpleDialog extends StatelessWidget {
           bottom: children == null ? effectiveTitlePadding.bottom * paddingScaleFactor : effectiveTitlePadding.bottom,
         ),
         child: DefaultTextStyle(
-          style: titleTextStyle ?? DialogTheme.of(context).titleTextStyle ?? theme.textTheme.titleLarge!,
+          style: defaultTextStyle,
           child: Semantics(
             // For iOS platform, the focus always lands on the title.
             // Set nameRoute to false to avoid title being announce twice.
@@ -1263,7 +1264,7 @@ class SimpleDialog extends StatelessWidget {
     Widget dialogChild = IntrinsicWidth(
       stepWidth: 56.0,
       child: ConstrainedBox(
-        constraints: _constraintsScaleFactor(MediaQuery.of(context).textScaleFactor, theme.useMaterial3),
+        constraints: const BoxConstraints(minWidth: 280.0),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1343,6 +1344,11 @@ Widget _buildMaterialDialogTransitions(BuildContext context, Animation<double> a
 /// The `routeSettings` argument is passed to [showGeneralDialog],
 /// see [RouteSettings] for details.
 ///
+/// If not null, the `traversalEdgeBehavior` argument specifies the transfer of
+/// focus beyond the first and the last items of the dialog route. By default,
+/// [TraversalEdgeBehavior.closedLoop] is used, because it's typical for dialogs
+/// to allow users to cycle through dialog widgets without leaving the dialog.
+///
 /// {@macro flutter.widgets.RawDialogRoute}
 ///
 /// If the application has multiple [Navigator] objects, it may be necessary to
@@ -1381,12 +1387,6 @@ Widget _buildMaterialDialogTransitions(BuildContext context, Animation<double> a
 ///
 /// {@macro flutter.widgets.RestorationManager}
 ///
-/// If not null, `traversalEdgeBehavior` argument specifies the transfer of
-/// focus beyond the first and the last items of the dialog route. By default,
-/// uses [TraversalEdgeBehavior.closedLoop], because it's typical for dialogs
-/// to allow users to cycle through widgets inside it without leaving the
-/// dialog.
-///
 /// ** See code in examples/api/lib/material/dialog/show_dialog.2.dart **
 /// {@end-tool}
 ///
@@ -1406,7 +1406,7 @@ Future<T?> showDialog<T>({
   required BuildContext context,
   required WidgetBuilder builder,
   bool barrierDismissible = true,
-  Color? barrierColor = Colors.black54,
+  Color? barrierColor,
   String? barrierLabel,
   bool useSafeArea = true,
   bool useRootNavigator = true,
@@ -1428,7 +1428,7 @@ Future<T?> showDialog<T>({
   return Navigator.of(context, rootNavigator: useRootNavigator).push<T>(DialogRoute<T>(
     context: context,
     builder: builder,
-    barrierColor: barrierColor,
+    barrierColor: barrierColor ?? Colors.black54,
     barrierDismissible: barrierDismissible,
     barrierLabel: barrierLabel,
     useSafeArea: useSafeArea,
@@ -1451,7 +1451,7 @@ Future<T?> showAdaptiveDialog<T>({
   required BuildContext context,
   required WidgetBuilder builder,
   bool? barrierDismissible,
-  Color? barrierColor = Colors.black54,
+  Color? barrierColor,
   String? barrierLabel,
   bool useSafeArea = true,
   bool useRootNavigator = true,
@@ -1582,22 +1582,11 @@ class DialogRoute<T> extends RawDialogRoute<T> {
        );
 }
 
-double _paddingScaleFactor(double textScaleFactor) {
+double _scalePadding(double textScaleFactor) {
   final double clampedTextScaleFactor = clampDouble(textScaleFactor, 1.0, 2.0);
   // The final padding scale factor is clamped between 1/3 and 1. For example,
   // a non-scaled padding of 24 will produce a padding between 24 and 8.
   return lerpDouble(1.0, 1.0 / 3.0, clampedTextScaleFactor - 1.0)!;
-}
-
-BoxConstraints _constraintsScaleFactor(double textScaleFactor, bool useMaterial3) {
-  if (!useMaterial3) {
-    return const BoxConstraints(minWidth: 280.0);
-  } else {
-    return textScaleFactor == 1.0
-      ? _dialogConstraints
-      // Scale the max height of the dialog by the text scale factor to aid in readability.
-      : _dialogConstraints.copyWith(maxHeight: _dialogConstraints.maxHeight * textScaleFactor);
-  }
 }
 
 // Hand coded defaults based on Material Design 2.
@@ -1641,8 +1630,6 @@ class _DialogDefaultsM2 extends DialogTheme {
 // Design token database by the script:
 //   dev/tools/gen_defaults/bin/gen_defaults.dart.
 
-// Token database version: v0_162
-
 class _DialogDefaultsM3 extends DialogTheme {
   _DialogDefaultsM3(this.context)
     : super(
@@ -1685,8 +1672,6 @@ class _DialogDefaultsM3 extends DialogTheme {
 // "END GENERATED" comments are generated from data in the Material
 // Design token database by the script:
 //   dev/tools/gen_defaults/bin/gen_defaults.dart.
-
-// Token database version: v0_162
 
 class _DialogFullscreenDefaultsM3 extends DialogTheme {
   const _DialogFullscreenDefaultsM3(this.context);

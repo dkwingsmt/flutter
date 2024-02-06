@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:leak_tracker_flutter_testing/leak_tracker_flutter_testing.dart';
 
 void main() {
   group(LogicalKeySet, () {
@@ -174,7 +175,7 @@ void main() {
       expect(invoked, 0);
       invoked = 0;
 
-      expect(RawKeyboard.instance.keysPressed, isEmpty);
+      expect(HardwareKeyboard.instance.logicalKeysPressed, isEmpty);
     });
 
     test('LogicalKeySet.hashCode is stable', () {
@@ -212,11 +213,11 @@ void main() {
 
     testWidgets('isActivatedBy works as expected', (WidgetTester tester) async {
       // Collect some key events to use for testing.
-      final List<RawKeyEvent> events = <RawKeyEvent>[];
+      final List<KeyEvent> events = <KeyEvent>[];
       await tester.pumpWidget(
         Focus(
           autofocus: true,
-          onKey: (FocusNode node, RawKeyEvent event) {
+          onKeyEvent: (FocusNode node, KeyEvent event) {
             events.add(event);
             return KeyEventResult.ignored;
           },
@@ -228,10 +229,13 @@ void main() {
 
       await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
       await tester.sendKeyDownEvent(LogicalKeyboardKey.keyA);
-      expect(ShortcutActivator.isActivatedBy(set, events[0]), isTrue);
+      expect(ShortcutActivator.isActivatedBy(set, events.last), isTrue);
+      await tester.sendKeyRepeatEvent(LogicalKeyboardKey.keyA);
+      expect(ShortcutActivator.isActivatedBy(set, events.last), isTrue);
       await tester.sendKeyUpEvent(LogicalKeyboardKey.keyA);
+      expect(ShortcutActivator.isActivatedBy(set, events.last), isFalse);
       await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
-      expect(ShortcutActivator.isActivatedBy(set, events[0]), isFalse);
+      expect(ShortcutActivator.isActivatedBy(set, events.last), isFalse);
     });
 
     test('LogicalKeySet diagnostics work.', () {
@@ -348,7 +352,8 @@ void main() {
       expect(invoked, 1);
       invoked = 0;
 
-      expect(RawKeyboard.instance.keysPressed, isEmpty);
+      expect(HardwareKeyboard.instance.logicalKeysPressed, isEmpty);
+      // ignore: deprecated_member_use
     }, variant: KeySimulatorTransitModeVariant.all());
 
     testWidgets('handles repeated events', (WidgetTester tester) async {
@@ -374,7 +379,8 @@ void main() {
       expect(invoked, 2);
       invoked = 0;
 
-      expect(RawKeyboard.instance.keysPressed, isEmpty);
+      expect(HardwareKeyboard.instance.logicalKeysPressed, isEmpty);
+      // ignore: deprecated_member_use
     }, variant: KeySimulatorTransitModeVariant.all());
 
     testWidgets('rejects repeated events if requested', (WidgetTester tester) async {
@@ -401,7 +407,8 @@ void main() {
       expect(invoked, 1);
       invoked = 0;
 
-      expect(RawKeyboard.instance.keysPressed, isEmpty);
+      expect(HardwareKeyboard.instance.logicalKeysPressed, isEmpty);
+      // ignore: deprecated_member_use
     }, variant: KeySimulatorTransitModeVariant.all());
 
     testWidgets('handles Shift-Ctrl-C', (WidgetTester tester) async {
@@ -451,16 +458,16 @@ void main() {
       expect(invoked, 0);
       invoked = 0;
 
-      expect(RawKeyboard.instance.keysPressed, isEmpty);
+      expect(HardwareKeyboard.instance.logicalKeysPressed, isEmpty);
     });
 
     testWidgets('isActivatedBy works as expected', (WidgetTester tester) async {
       // Collect some key events to use for testing.
-      final List<RawKeyEvent> events = <RawKeyEvent>[];
+      final List<KeyEvent> events = <KeyEvent>[];
       await tester.pumpWidget(
         Focus(
           autofocus: true,
-          onKey: (FocusNode node, RawKeyEvent event) {
+          onKeyEvent: (FocusNode node, KeyEvent event) {
             events.add(event);
             return KeyEventResult.ignored;
           },
@@ -470,12 +477,27 @@ void main() {
 
       const SingleActivator singleActivator = SingleActivator(LogicalKeyboardKey.keyA, control: true);
 
+     await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.keyA);
+      expect(ShortcutActivator.isActivatedBy(singleActivator, events.last), isTrue);
+      await tester.sendKeyRepeatEvent(LogicalKeyboardKey.keyA);
+      expect(ShortcutActivator.isActivatedBy(singleActivator, events.last), isTrue);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.keyA);
+      expect(ShortcutActivator.isActivatedBy(singleActivator, events.last), isFalse);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      expect(ShortcutActivator.isActivatedBy(singleActivator, events.last), isFalse);
+
+      const SingleActivator noRepeatSingleActivator = SingleActivator(LogicalKeyboardKey.keyA, control: true, includeRepeats: false);
+
       await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
       await tester.sendKeyDownEvent(LogicalKeyboardKey.keyA);
+      expect(ShortcutActivator.isActivatedBy(noRepeatSingleActivator, events.last), isTrue);
+      await tester.sendKeyRepeatEvent(LogicalKeyboardKey.keyA);
+      expect(ShortcutActivator.isActivatedBy(noRepeatSingleActivator, events.last), isFalse);
       await tester.sendKeyUpEvent(LogicalKeyboardKey.keyA);
-      expect(ShortcutActivator.isActivatedBy(singleActivator, events[1]), isTrue);
+      expect(ShortcutActivator.isActivatedBy(noRepeatSingleActivator, events.last), isFalse);
       await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
-      expect(ShortcutActivator.isActivatedBy(singleActivator, events[1]), isFalse);
+      expect(ShortcutActivator.isActivatedBy(noRepeatSingleActivator, events.last), isFalse);
     });
 
     group('diagnostics.', () {
@@ -542,6 +564,7 @@ void main() {
 
     testWidgets('Default constructed Shortcuts.manager has empty shortcuts', (WidgetTester tester) async {
       final ShortcutManager manager = ShortcutManager();
+      addTearDown(manager.dispose);
       expect(manager.shortcuts, isNotNull);
       expect(manager.shortcuts, isEmpty);
       final Shortcuts shortcuts = Shortcuts.manager(manager: manager, child: const SizedBox());
@@ -555,6 +578,7 @@ void main() {
         LogicalKeySet(LogicalKeyboardKey.shift): const TestIntent(),
       };
       final ShortcutManager manager = ShortcutManager(shortcuts: testShortcuts);
+      addTearDown(manager.dispose);
       expect(manager.shortcuts, isNotNull);
       expect(manager.shortcuts, equals(testShortcuts));
       final Shortcuts shortcuts = Shortcuts.manager(manager: manager, child: const SizedBox());
@@ -572,6 +596,7 @@ void main() {
           LogicalKeySet(LogicalKeyboardKey.shift): const TestIntent(),
         },
       );
+      addTearDown(testManager.dispose);
       bool invoked = false;
       await tester.pumpWidget(
         Actions(
@@ -601,18 +626,13 @@ void main() {
     testWidgets('Shortcuts.manager lets manager handle shortcuts', (WidgetTester tester) async {
       final GlobalKey containerKey = GlobalKey();
       final List<LogicalKeyboardKey> pressedKeys = <LogicalKeyboardKey>[];
-      bool shortcutsSet = false;
-      void onShortcutsSet() {
-        shortcutsSet = true;
-      }
       final TestShortcutManager testManager = TestShortcutManager(
         pressedKeys,
-        onShortcutsSet: onShortcutsSet,
         shortcuts: <LogicalKeySet, Intent>{
           LogicalKeySet(LogicalKeyboardKey.shift): const TestIntent(),
         },
       );
-      shortcutsSet = false;
+      addTearDown(testManager.dispose);
       bool invoked = false;
       await tester.pumpWidget(
         Actions(
@@ -636,7 +656,6 @@ void main() {
       await tester.pump();
       await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
       expect(invoked, isTrue);
-      expect(shortcutsSet, isFalse);
       expect(pressedKeys, equals(<LogicalKeyboardKey>[LogicalKeyboardKey.shiftLeft]));
     });
 
@@ -649,6 +668,7 @@ void main() {
           LogicalKeySet(LogicalKeyboardKey.shift): const TestIntent(),
         },
       );
+      addTearDown(testManager.dispose);
       bool invoked = false;
       await tester.pumpWidget(
         Actions(
@@ -673,6 +693,13 @@ void main() {
       expect(pressedKeys, isEmpty);
     });
 
+    test('$ShortcutManager dispatches object creation in constructor', () async {
+      await expectLater(
+        await memoryEvents(() => ShortcutManager().dispose(), ShortcutManager),
+        areCreateAndDispose,
+      );
+    });
+
     testWidgets("Shortcuts passes to the next Shortcuts widget if it doesn't map the key", (WidgetTester tester) async {
       final GlobalKey containerKey = GlobalKey();
       final List<LogicalKeyboardKey> pressedKeys = <LogicalKeyboardKey>[];
@@ -682,6 +709,7 @@ void main() {
           LogicalKeySet(LogicalKeyboardKey.shift): const TestIntent(),
         },
       );
+      addTearDown(testManager.dispose);
       bool invoked = false;
       await tester.pumpWidget(
         Shortcuts.manager(
@@ -722,6 +750,7 @@ void main() {
           LogicalKeySet(LogicalKeyboardKey.shift): const TestIntent(),
         },
       );
+      addTearDown(testManager.dispose);
       bool invoked = false;
       await tester.pumpWidget(
         MaterialApp(
@@ -764,6 +793,7 @@ void main() {
           LogicalKeySet(LogicalKeyboardKey.keyA): const TestIntent(),
         },
       );
+      addTearDown(testManager.dispose);
       await tester.pumpWidget(
         MaterialApp(
           home: Material(
@@ -789,6 +819,7 @@ void main() {
           LogicalKeySet(LogicalKeyboardKey.keyA): const TestIntent(),
         },
       );
+      addTearDown(testManager.dispose);
       bool invoked = false;
       await tester.pumpWidget(
         MaterialApp(
@@ -826,6 +857,7 @@ void main() {
           LogicalKeySet(LogicalKeyboardKey.keyA): const TestIntent(),
         },
       );
+      addTearDown(testManager.dispose);
       bool invoked = false;
       await tester.pumpWidget(
         MaterialApp(
@@ -867,6 +899,7 @@ void main() {
           LogicalKeySet(LogicalKeyboardKey.keyA): const TestIntent(),
         },
       );
+      addTearDown(testManager.dispose);
       bool invoked = false;
       await tester.pumpWidget(
         MaterialApp(
@@ -984,6 +1017,7 @@ void main() {
           ): const ActivateIntent(),
         },
       );
+      addTearDown(testManager.dispose);
 
       Shortcuts.manager(
         manager: testManager,
@@ -1138,6 +1172,7 @@ void main() {
       await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
       expect(invoked, 1);
       invoked = 0;
+      // ignore: deprecated_member_use
     }, variant: KeySimulatorTransitModeVariant.all());
 
     testWidgets('handles repeated events', (WidgetTester tester) async {
@@ -1158,6 +1193,7 @@ void main() {
       await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
       expect(invoked, 2);
       invoked = 0;
+      // ignore: deprecated_member_use
     }, variant: KeySimulatorTransitModeVariant.all());
 
     testWidgets('rejects repeated events if requested', (WidgetTester tester) async {
@@ -1178,6 +1214,7 @@ void main() {
       await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
       expect(invoked, 1);
       invoked = 0;
+      // ignore: deprecated_member_use
     }, variant: KeySimulatorTransitModeVariant.all());
 
     testWidgets('handles Alt, Ctrl and Meta', (WidgetTester tester) async {
@@ -1224,15 +1261,16 @@ void main() {
       await tester.sendKeyUpEvent(LogicalKeyboardKey.controlRight);
       expect(invoked, 1);
       invoked = 0;
+      // ignore: deprecated_member_use
     }, variant: KeySimulatorTransitModeVariant.all());
 
     testWidgets('isActivatedBy works as expected', (WidgetTester tester) async {
       // Collect some key events to use for testing.
-      final List<RawKeyEvent> events = <RawKeyEvent>[];
+      final List<KeyEvent> events = <KeyEvent>[];
       await tester.pumpWidget(
         Focus(
           autofocus: true,
-          onKey: (FocusNode node, RawKeyEvent event) {
+          onKeyEvent: (FocusNode node, KeyEvent event) {
             events.add(event);
             return KeyEventResult.ignored;
           },
@@ -1243,8 +1281,20 @@ void main() {
       const CharacterActivator characterActivator = CharacterActivator('a');
 
       await tester.sendKeyDownEvent(LogicalKeyboardKey.keyA);
+      expect(ShortcutActivator.isActivatedBy(characterActivator, events.last), isTrue);
+      await tester.sendKeyRepeatEvent(LogicalKeyboardKey.keyA);
+      expect(ShortcutActivator.isActivatedBy(characterActivator, events.last), isTrue);
       await tester.sendKeyUpEvent(LogicalKeyboardKey.keyA);
-      expect(ShortcutActivator.isActivatedBy(characterActivator, events[0]), isTrue);
+      expect(ShortcutActivator.isActivatedBy(characterActivator, events.last), isFalse);
+
+      const CharacterActivator noRepeatCharacterActivator = CharacterActivator('a', includeRepeats: false);
+
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.keyA);
+      expect(ShortcutActivator.isActivatedBy(noRepeatCharacterActivator, events.last), isTrue);
+      await tester.sendKeyRepeatEvent(LogicalKeyboardKey.keyA);
+      expect(ShortcutActivator.isActivatedBy(noRepeatCharacterActivator, events.last), isFalse);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.keyA);
+      expect(ShortcutActivator.isActivatedBy(noRepeatCharacterActivator, events.last), isFalse);
     });
 
     group('diagnostics.', () {
@@ -1569,6 +1619,7 @@ void main() {
 
     testWidgets("doesn't override text field shortcuts", (WidgetTester tester) async {
       final TextEditingController controller = TextEditingController();
+      addTearDown(controller.dispose);
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
@@ -1839,6 +1890,7 @@ void main() {
 
     testWidgets('using a disposed token asserts', (WidgetTester tester) async {
       final ShortcutRegistry registry = ShortcutRegistry();
+      addTearDown(registry.dispose);
       final ShortcutRegistryEntry token = registry.addAll(const <ShortcutActivator, Intent>{
         SingleActivator(LogicalKeyboardKey.keyA): DoNothingIntent(),
       });
@@ -1848,6 +1900,7 @@ void main() {
 
     testWidgets('setting duplicate bindings asserts', (WidgetTester tester) async {
       final ShortcutRegistry registry = ShortcutRegistry();
+      addTearDown(registry.dispose);
       final ShortcutRegistryEntry token = registry.addAll(const <ShortcutActivator, Intent>{
         SingleActivator(LogicalKeyboardKey.keyA): DoNothingIntent(),
       });
@@ -1858,6 +1911,13 @@ void main() {
         token2.dispose();
       }, throwsAssertionError);
       token.dispose();
+    });
+
+    test('dispatches object creation in constructor', () async {
+      await expectLater(
+        await memoryEvents(() => ShortcutRegistry().dispose(), ShortcutRegistry),
+        areCreateAndDispose,
+      );
     });
   });
 }
@@ -1909,14 +1969,12 @@ class TestAction extends CallbackAction<Intent> {
   TestAction({
     required super.onInvoke,
   });
-
-  static const LocalKey key = ValueKey<Type>(TestAction);
 }
 
 /// An activator that accepts down events that has [key] as the logical key.
 ///
 /// This class is used only to tests. It is intentionally designed poorly by
-/// returning null in [triggers], and checks [key] in [accepts].
+/// returning null in [triggers], and checks [key] in [acceptsEvent].
 class DumbLogicalActivator extends ShortcutActivator {
   const DumbLogicalActivator(this.key);
 
@@ -1926,8 +1984,8 @@ class DumbLogicalActivator extends ShortcutActivator {
   Iterable<LogicalKeyboardKey>? get triggers => null;
 
   @override
-  bool accepts(RawKeyEvent event, RawKeyboard state) {
-    return event is RawKeyDownEvent
+  bool accepts(KeyEvent event, HardwareKeyboard state) {
+    return (event is KeyDownEvent || event is KeyRepeatEvent)
         && event.logicalKey == key;
   }
 
@@ -1955,14 +2013,13 @@ class TestIntent2 extends Intent {
 }
 
 class TestShortcutManager extends ShortcutManager {
-  TestShortcutManager(this.keys, { super.shortcuts, this.onShortcutsSet });
+  TestShortcutManager(this.keys, { super.shortcuts });
 
   List<LogicalKeyboardKey> keys;
-  VoidCallback? onShortcutsSet;
 
   @override
-  KeyEventResult handleKeypress(BuildContext context, RawKeyEvent event) {
-    if (event is RawKeyDownEvent) {
+  KeyEventResult handleKeypress(BuildContext context, KeyEvent event) {
+    if (event is KeyDownEvent || event is KeyRepeatEvent) {
       keys.add(event.logicalKey);
     }
     return super.handleKeypress(context, event);

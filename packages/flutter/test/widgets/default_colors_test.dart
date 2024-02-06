@@ -67,6 +67,20 @@ void main() {
 
   testWidgets('Default text selection color', (WidgetTester tester) async {
     final GlobalKey key = GlobalKey();
+    final FocusNode focusNode = FocusNode();
+    addTearDown(focusNode.dispose);
+    final OverlayEntry overlayEntry = OverlayEntry(
+      builder: (BuildContext context) => SelectableRegion(
+        focusNode: focusNode,
+        selectionControls: emptyTextSelectionControls,
+        child: Align(
+          key: key,
+          alignment: Alignment.topLeft,
+          child: const Text('Éxp', textDirection: TextDirection.ltr, style: TextStyle(fontSize: _crispText, color: Color(0xFF000000))),
+        ),
+      ),
+    );
+    addTearDown(() => overlayEntry..remove()..dispose());
     await tester.pumpWidget(
       ColoredBox(
         color: const Color(0xFFFFFFFF),
@@ -75,19 +89,7 @@ void main() {
           child: MediaQuery(
             data: const MediaQueryData(),
             child: Overlay(
-              initialEntries: <OverlayEntry>[
-                OverlayEntry(
-                  builder: (BuildContext context) => SelectableRegion(
-                    focusNode: FocusNode(),
-                    selectionControls: emptyTextSelectionControls,
-                    child: Align(
-                      key: key,
-                      alignment: Alignment.topLeft,
-                      child: const Text('Éxp', textDirection: TextDirection.ltr, style: TextStyle(fontSize: _crispText)),
-                    ),
-                  ),
-                ),
-              ],
+              initialEntries: <OverlayEntry>[overlayEntry],
             ),
           ),
         ),
@@ -97,7 +99,7 @@ void main() {
     await _expectColors(
       tester,
       find.byType(Align),
-      <Color>{ const Color(0xFFFFFFFF) },
+      <Color>{ const Color(0xFFFFFFFF), const Color(0xFF000000) },
     );
     // fake a "select all" event to select the text
     Actions.invoke(key.currentContext!, const SelectAllTextIntent(SelectionChangedCause.keyboard));
@@ -105,13 +107,13 @@ void main() {
     await _expectColors(
       tester,
       find.byType(Align),
-      <Color>{ const Color(0xFFFFFFFF), const Color(0xFFBFBFBF) }, // 0x80808080 blended with 0xFFFFFFFF
+      <Color>{ const Color(0xFFFFFFFF), const Color(0xFF000000), const Color(0xFFBFBFBF) }, // 0x80808080 blended with 0xFFFFFFFF
       <Offset, Color>{
-        Offset.zero: const Color(0xFFBFBFBF), // the selected text
-        const Offset(10, 10): const Color(0xFFBFBFBF), // the selected text
+        Offset.zero: const Color(0xFF000000), // the selected text
+        const Offset(10, 10): const Color(0xFF000000), // the selected text
         const Offset(50, 95): const Color(0xFFBFBFBF), // the selected background (under the É)
         const Offset(250, 50): const Color(0xFFBFBFBF), // the selected background (above the p)
-        const Offset(250, 95): const Color(0xFFBFBFBF), // the selected text (the p)
+        const Offset(250, 95): const Color(0xFF000000), // the selected text (the p)
         const Offset(400, 400): const Color(0xFFFFFFFF), // the background
         const Offset(799, 599): const Color(0xFFFFFFFF), // the background
       },
@@ -132,6 +134,7 @@ Color _getPixel(ByteData bytes, int x, int y, int width) {
 Future<void> _expectColors(WidgetTester tester, Finder finder, Set<Color> allowedColors, [ Map<Offset, Color>? spotChecks ]) async {
   final TestWidgetsFlutterBinding binding = tester.binding;
   final ui.Image image = (await binding.runAsync<ui.Image>(() => captureImage(finder.evaluate().single)))!;
+  addTearDown(image.dispose);
   final ByteData bytes = (await binding.runAsync<ByteData?>(() => image.toByteData(format: ui.ImageByteFormat.rawStraightRgba)))!;
   final Set<int> actualColorValues = <int>{};
   for (int offset = 0; offset < bytes.lengthInBytes; offset += 4) {

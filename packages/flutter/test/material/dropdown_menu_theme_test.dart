@@ -79,7 +79,7 @@ void main() {
     final Finder menuMaterial = find.ancestor(
       of: find.widgetWithText(TextButton, 'Item 0'),
       matching: find.byType(Material),
-    ).last;
+    ).at(1);
     Material material = tester.widget<Material>(menuMaterial);
     expect(material.color, themeData.colorScheme.surface);
     expect(material.shadowColor, themeData.colorScheme.shadow);
@@ -158,7 +158,7 @@ void main() {
     final Finder menuMaterial = find.ancestor(
       of: find.widgetWithText(TextButton, 'Item 0'),
       matching: find.byType(Material),
-    ).last;
+    ).at(1);
     Material material = tester.widget<Material>(menuMaterial);
     expect(material.color, Colors.grey);
     expect(material.shadowColor, Colors.brown);
@@ -261,7 +261,7 @@ void main() {
     final Finder menuMaterial = find.ancestor(
       of: find.widgetWithText(TextButton, 'Item 0'),
       matching: find.byType(Material),
-    ).last;
+    ).at(1);
     Material material = tester.widget<Material>(menuMaterial);
     expect(material.color, Colors.yellow);
     expect(material.shadowColor, Colors.green);
@@ -382,7 +382,7 @@ void main() {
     final Finder menuMaterial = find.ancestor(
       of: find.widgetWithText(TextButton, 'Item 0'),
       matching: find.byType(Material),
-    ).last;
+    ).at(1);
     Material material = tester.widget<Material>(menuMaterial);
     expect(material.color, Colors.limeAccent);
     expect(material.shadowColor, Colors.deepOrangeAccent);

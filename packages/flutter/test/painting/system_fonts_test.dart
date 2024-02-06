@@ -10,6 +10,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:leak_tracker_flutter_testing/leak_tracker_flutter_testing.dart';
 
 Future<void> verifyMarkedNeedsLayoutDuringTransientCallbacksPhase(WidgetTester tester, RenderObject renderObject) async {
   assert(!renderObject.debugNeedsLayout);
@@ -36,7 +37,10 @@ Future<void> verifyMarkedNeedsLayoutDuringTransientCallbacksPhase(WidgetTester t
 }
 
 void main() {
-  testWidgets('RenderParagraph relayout upon system fonts changes', (WidgetTester tester) async {
+  testWidgets('RenderParagraph relayout upon system fonts changes',
+  // TODO(polina-c): clean up leaks, https://github.com/flutter/flutter/issues/134787 [leaks-to-clean]
+  experimentalLeakTesting: LeakTesting.settings.withIgnoredAll(),
+  (WidgetTester tester) async {
     await tester.pumpWidget(
       const MaterialApp(
         home: Text('text widget'),
@@ -180,11 +184,11 @@ void main() {
     );
     // Metrics should be refreshed
     // ignore: avoid_dynamic_calls
-    expect(state.numberLabelWidth - 46.0 < precisionErrorTolerance, isTrue);
+    expect(state.numberLabelWidth, lessThan(46.0 + precisionErrorTolerance));
     // ignore: avoid_dynamic_calls
-    expect(state.numberLabelHeight - 23.0 < precisionErrorTolerance, isTrue);
+    expect(state.numberLabelHeight, lessThan(23.0 + precisionErrorTolerance));
     // ignore: avoid_dynamic_calls
-    expect(state.numberLabelBaseline - 18.400070190429688 < precisionErrorTolerance, isTrue);
+    expect(state.numberLabelBaseline, lessThan(18.400070190429688 + precisionErrorTolerance));
     final Element element = tester.element(find.byType(CupertinoTimerPicker));
     expect(element.dirty, isTrue);
   }, skip: isBrowser);  // TODO(yjbanov): cupertino does not work on the Web yet: https://github.com/flutter/flutter/issues/41920

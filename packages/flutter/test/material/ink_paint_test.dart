@@ -6,8 +6,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import '../rendering/mock_canvas.dart';
-
 void main() {
   testWidgets('The Ink widget expands when no dimensions are set', (WidgetTester tester) async {
     await tester.pumpWidget(
@@ -59,9 +57,9 @@ void main() {
     const BorderRadius borderRadius = BorderRadius.all(Radius.circular(6.0));
 
     await tester.pumpWidget(
-      Directionality(
-        textDirection: TextDirection.ltr,
-        child: Material(
+      MaterialApp(
+        theme: ThemeData(useMaterial3: false),
+        home: Material(
           child: Center(
             child: SizedBox(
               width: 200.0,
@@ -190,9 +188,9 @@ void main() {
 
   testWidgets('Does the Ink widget render anything', (WidgetTester tester) async {
     await tester.pumpWidget(
-      Directionality(
-        textDirection: TextDirection.ltr,
-        child: Material(
+      MaterialApp(
+        theme: ThemeData(useMaterial3: false),
+        home: Material(
           child: Center(
             child: Ink(
               color: Colors.blue,
@@ -222,9 +220,9 @@ void main() {
     );
 
     await tester.pumpWidget(
-      Directionality(
-        textDirection: TextDirection.ltr,
-        child: Material(
+      MaterialApp(
+        theme: ThemeData(useMaterial3: false),
+        home: Material(
           child: Center(
             child: Ink(
               color: Colors.red,
@@ -250,9 +248,9 @@ void main() {
     );
 
     await tester.pumpWidget(
-      Directionality(
-        textDirection: TextDirection.ltr,
-        child: Material(
+      MaterialApp(
+        theme: ThemeData(useMaterial3: false),
+        home: Material(
           child: Center(
             child: InkWell( // this is at a different depth in the tree so it's now a new InkWell
               splashColor: Colors.green,
@@ -277,6 +275,7 @@ void main() {
     const BorderRadius borderRadius = BorderRadius.all(Radius.circular(6.0));
 
     final FocusNode focusNode = FocusNode(debugLabel: 'Test Node');
+    addTearDown(focusNode.dispose);
     Future<void> buildTest(Intent intent) async {
       return tester.pumpWidget(
         Shortcuts(
@@ -457,6 +456,10 @@ void main() {
   testWidgets('The InkWell widget on OverlayPortal does not throw', (WidgetTester tester) async {
     final OverlayPortalController controller = OverlayPortalController();
     controller.show();
+
+    late OverlayEntry overlayEntry;
+    addTearDown(() => overlayEntry..remove()..dispose());
+
     await tester.pumpWidget(
       Center(
         child: RepaintBoundary(
@@ -466,7 +469,7 @@ void main() {
               textDirection: TextDirection.ltr,
               child: Overlay(
                 initialEntries: <OverlayEntry>[
-                  OverlayEntry(
+                  overlayEntry = OverlayEntry(
                     builder: (BuildContext context) {
                       return Center(
                         child: SizedBox.square(
@@ -518,9 +521,9 @@ void main() {
     const Color splashColor = Color(0xff00ff00);
 
     Widget buildWidget({InteractiveInkFeatureFactory? splashFactory}) {
-      return Directionality(
-        textDirection: TextDirection.ltr,
-        child: Material(
+      return MaterialApp(
+        theme: ThemeData(useMaterial3: false),
+        home: Material(
           child: Center(
             child: SizedBox(
               width: 100.0,

@@ -9,6 +9,7 @@ import 'package:flutter/gestures.dart';
 
 import 'basic_types.dart';
 import 'text_painter.dart';
+import 'text_scaler.dart';
 import 'text_span.dart';
 import 'text_style.dart';
 
@@ -50,8 +51,6 @@ class InlineSpanSemanticsInformation {
   /// Constructs an object that holds the text and semantics label values of an
   /// [InlineSpan].
   ///
-  /// The text parameter must not be null.
-  ///
   /// Use [InlineSpanSemanticsInformation.placeholder] instead of directly setting
   /// [isPlaceholder].
   const InlineSpanSemanticsInformation(
@@ -60,7 +59,7 @@ class InlineSpanSemanticsInformation {
     this.semanticsLabel,
     this.stringAttributes = const <ui.StringAttribute>[],
     this.recognizer,
-  }) : assert(isPlaceholder == false || (text == '\uFFFC' && semanticsLabel == null && recognizer == null)),
+  }) : assert(!isPlaceholder || (text == '\uFFFC' && semanticsLabel == null && recognizer == null)),
        requiresOwnNode = isPlaceholder || recognizer != null;
 
   /// The text info for a [PlaceholderSpan].
@@ -209,7 +208,7 @@ abstract class InlineSpan extends DiagnosticableTree {
   /// Apply the properties of this object to the given [ParagraphBuilder], from
   /// which a [Paragraph] can be obtained.
   ///
-  /// The `textScaleFactor` parameter specifies a scale that the text and
+  /// The `textScaler` parameter specifies a [TextScaler] that the text and
   /// placeholders will be scaled by. The scaling is performed before layout,
   /// so the text will be laid out with the scaled glyphs and placeholders.
   ///
@@ -218,7 +217,10 @@ abstract class InlineSpan extends DiagnosticableTree {
   /// in the same order as defined in the [InlineSpan] tree.
   ///
   /// [Paragraph] objects can be drawn on [Canvas] objects.
-  void build(ui.ParagraphBuilder builder, { double textScaleFactor = 1.0, List<PlaceholderDimensions>? dimensions });
+  void build(ui.ParagraphBuilder builder, {
+    TextScaler textScaler = TextScaler.noScaling,
+    List<PlaceholderDimensions>? dimensions,
+  });
 
   /// Walks this [InlineSpan] and any descendants in pre-order and calls `visitor`
   /// for each span that has content.
@@ -395,9 +397,6 @@ abstract class InlineSpan extends DiagnosticableTree {
   void debugFillProperties(DiagnosticPropertiesBuilder properties) {
     super.debugFillProperties(properties);
     properties.defaultDiagnosticsTreeStyle = DiagnosticsTreeStyle.whitespace;
-
-    if (style != null) {
-      style!.debugFillProperties(properties);
-    }
+    style?.debugFillProperties(properties);
   }
 }

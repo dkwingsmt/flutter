@@ -334,6 +334,28 @@ void main() {
       expect(logger.warningText, contains('Flutter assets will be downloaded from $baseUrl'));
       expect(logger.statusText, isEmpty);
     });
+
+    testWithoutContext('a non-empty realm is included in the storage url', () async {
+      final MemoryFileSystem fileSystem = MemoryFileSystem.test();
+      final Directory internalDir = fileSystem.currentDirectory
+        .childDirectory('cache')
+        .childDirectory('bin')
+        .childDirectory('internal');
+      final File engineVersionFile = internalDir.childFile('engine.version');
+      engineVersionFile.createSync(recursive: true);
+      engineVersionFile.writeAsStringSync('abcdef');
+
+      final File engineRealmFile = internalDir.childFile('engine.realm');
+      engineRealmFile.createSync(recursive: true);
+      engineRealmFile.writeAsStringSync('flutter_archives_v2');
+
+      final Cache cache = Cache.test(
+        processManager: FakeProcessManager.any(),
+        fileSystem: fileSystem,
+      );
+
+      expect(cache.storageBaseUrl, contains('flutter_archives_v2'));
+    });
   });
 
   testWithoutContext('flattenNameSubdirs', () {
@@ -593,7 +615,7 @@ void main() {
       expect(artifacts.getBinaryDirs(), <List<String>>[
         <String>['darwin-x64', 'darwin-arm64/font-subset.zip'],
         <String>['linux-arm64', 'linux-arm64/font-subset.zip'],
-        <String>['windows-x64', 'windows-x64/font-subset.zip'], // arm64 windows hosts are not supported now
+        <String>['windows-arm64', 'windows-arm64/font-subset.zip'],
       ]);
   });
 
@@ -1042,7 +1064,11 @@ void main() {
     });
 
     testWithoutContext('AndroidMavenArtifacts has a specified development artifact', () async {
-      final AndroidMavenArtifacts mavenArtifacts = AndroidMavenArtifacts(cache!, platform: FakePlatform());
+      final AndroidMavenArtifacts mavenArtifacts = AndroidMavenArtifacts(
+        cache!,
+        java: FakeJava(),
+        platform: FakePlatform(),
+      );
       expect(mavenArtifacts.developmentArtifact, DevelopmentArtifact.androidMaven);
     });
 
@@ -1050,7 +1076,11 @@ void main() {
       final String? oldRoot = Cache.flutterRoot;
       Cache.flutterRoot = '';
       try {
-        final AndroidMavenArtifacts mavenArtifacts = AndroidMavenArtifacts(cache!, platform: FakePlatform());
+        final AndroidMavenArtifacts mavenArtifacts = AndroidMavenArtifacts(
+          cache!,
+          java: FakeJava(),
+          platform: FakePlatform(),
+        );
         expect(await mavenArtifacts.isUpToDate(memoryFileSystem!), isFalse);
 
         final Directory gradleWrapperDir = cache!.getArtifactDirectory('gradle_wrapper')..createSync(recursive: true);
@@ -1082,7 +1112,11 @@ void main() {
     });
 
     testUsingContext('AndroidMavenArtifacts is a no-op if the Android SDK is absent', () async {
-      final AndroidMavenArtifacts mavenArtifacts = AndroidMavenArtifacts(cache!, platform: FakePlatform());
+      final AndroidMavenArtifacts mavenArtifacts = AndroidMavenArtifacts(
+        cache!,
+        java: FakeJava(),
+        platform: FakePlatform(),
+      );
       expect(await mavenArtifacts.isUpToDate(memoryFileSystem!), isFalse);
 
       await mavenArtifacts.update(FakeArtifactUpdater(), BufferLogger.test(), memoryFileSystem!, FakeOperatingSystemUtils());
@@ -1255,7 +1289,7 @@ class FakeAndroidSdk extends Fake implements AndroidSdk {
   bool reinitialized = false;
 
   @override
-  void reinitialize() {
+  void reinitialize({FileSystem? fileSystem}) {
     reinitialized = true;
   }
 }

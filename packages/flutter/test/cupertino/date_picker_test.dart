@@ -148,6 +148,20 @@ void main() {
       expect(pickers.any((CupertinoPicker picker) => picker.backgroundColor != CupertinoColors.black), false);
     });
 
+    testWidgets('specified item extent value is applied', (WidgetTester tester) async {
+      await tester.pumpWidget(
+        CupertinoApp(
+          home: CupertinoTimerPicker(
+            itemExtent: 42,
+            onTimerDurationChanged: (_) { },
+          ),
+        ),
+      );
+
+      final Iterable<CupertinoPicker> pickers = tester.allWidgets.whereType<CupertinoPicker>();
+      expect(pickers.any((CupertinoPicker picker) => picker.itemExtent != 42), false);
+    });
+
     testWidgets('columns are ordered correctly when text direction is ltr', (WidgetTester tester) async {
       await tester.pumpWidget(
         CupertinoApp(
@@ -318,6 +332,20 @@ void main() {
 
       final Iterable<CupertinoPicker> pickers = tester.allWidgets.whereType<CupertinoPicker>();
       expect(pickers.any((CupertinoPicker picker) => picker.backgroundColor != CupertinoColors.black), false);
+    });
+
+    testWidgets('specified item extent value is applied', (WidgetTester tester) async {
+      await tester.pumpWidget(
+        CupertinoApp(
+          home: CupertinoDatePicker(
+            itemExtent: 55,
+            onDateTimeChanged: (_) { },
+          ),
+        ),
+      );
+
+      final Iterable<CupertinoPicker> pickers = tester.allWidgets.whereType<CupertinoPicker>();
+      expect(pickers.any((CupertinoPicker picker) => picker.itemExtent != 55), false);
     });
 
     testWidgets('initial date honors minuteInterval', (WidgetTester tester) async {
@@ -604,7 +632,7 @@ void main() {
       // Distance between the first and the last column should be the same.
       expect(
         tester.getCenter(find.text('10')).dx - tester.getCenter(find.text('AM')).dx,
-        distance,
+        moreOrLessEquals(distance),
       );
     });
 
@@ -716,6 +744,162 @@ void main() {
         );
       }
     });
+
+    testWidgets(
+      'non-selectable dates are greyed out, '
+      'when minimum date is unconstrained',
+      (WidgetTester tester) async {
+        final DateTime maximum = DateTime(2018, 6, 15);
+        await tester.pumpWidget(
+          CupertinoApp(
+            home: Center(
+              child: SizedBox(
+                height: 400.0,
+                width: 400.0,
+                child: CupertinoDatePicker(
+                  mode: CupertinoDatePickerMode.date,
+                  maximumDate: maximum,
+                  onDateTimeChanged: (_) {},
+                  initialDateTime: DateTime(2018, 6, 15),
+                ),
+              ),
+            ),
+          ),
+        );
+
+        // unconstrained bounds are not affected.
+        expect(
+          tester.widget<Text>(find.text('14')).style!.color,
+          isNot(isSameColorAs(CupertinoColors.inactiveGray.color)),
+        );
+
+        // the selected day is not affected.
+        expect(
+          tester.widget<Text>(find.text('15')).style!.color,
+          isNot(isSameColorAs(CupertinoColors.inactiveGray.color)),
+        );
+
+        // out of bounds and should be greyed out.
+        expect(
+          tester.widget<Text>(find.text('16')).style!.color,
+          isSameColorAs(CupertinoColors.inactiveGray.color),
+        );
+      },
+    );
+
+    testWidgets(
+      'non-selectable dates are greyed out, '
+      'when maximum date is unconstrained',
+      (WidgetTester tester) async {
+        final DateTime minimum = DateTime(2018, 6, 15);
+        await tester.pumpWidget(
+          CupertinoApp(
+            home: Center(
+              child: SizedBox(
+                height: 400.0,
+                width: 400.0,
+                child: CupertinoDatePicker(
+                  mode: CupertinoDatePickerMode.date,
+                  minimumDate: minimum,
+                  onDateTimeChanged: (_) {},
+                  initialDateTime: DateTime(2018, 6, 15),
+                ),
+              ),
+            ),
+          ),
+        );
+
+        // out of bounds and should be greyed out.
+        expect(
+          tester.widget<Text>(find.text('14')).style!.color,
+          isSameColorAs(CupertinoColors.inactiveGray.color),
+        );
+
+        // the selected day is not affected.
+        expect(
+          tester.widget<Text>(find.text('15')).style!.color,
+          isNot(isSameColorAs(CupertinoColors.inactiveGray.color)),
+        );
+
+        // unconstrained bounds are not affected.
+        expect(
+          tester.widget<Text>(find.text('16')).style!.color,
+          isNot(isSameColorAs(CupertinoColors.inactiveGray.color)),
+        );
+      },
+    );
+
+    testWidgets(
+      'non-selectable dates are greyed out, '
+      'months should be taken into account when greying out days',
+      (WidgetTester tester) async {
+        final DateTime minimum = DateTime(2018, 5, 15);
+        final DateTime maximum = DateTime(2018, 7, 15);
+        await tester.pumpWidget(
+          CupertinoApp(
+            home: Center(
+              child: SizedBox(
+                height: 400.0,
+                width: 400.0,
+                child: CupertinoDatePicker(
+                  mode: CupertinoDatePickerMode.date,
+                  minimumDate: minimum,
+                  maximumDate: maximum,
+                  onDateTimeChanged: (_) {},
+                  initialDateTime: DateTime(2018, 6, 15),
+                ),
+              ),
+            ),
+          ),
+        );
+
+        // days of a different min/max month are not affected.
+        expect(
+          tester.widget<Text>(find.text('14')).style!.color,
+          isNot(isSameColorAs(CupertinoColors.inactiveGray.color)),
+        );
+        expect(
+          tester.widget<Text>(find.text('16')).style!.color,
+          isNot(isSameColorAs(CupertinoColors.inactiveGray.color)),
+        );
+      },
+    );
+
+    testWidgets(
+      'non-selectable dates are greyed out, '
+      'years should be taken into account when greying out days',
+      (WidgetTester tester) async {
+        final DateTime minimum = DateTime(2017, 6, 15);
+        final DateTime maximum = DateTime(2019, 6, 15);
+        await tester.pumpWidget(
+          CupertinoApp(
+            home: Center(
+              child: SizedBox(
+                height: 400.0,
+                width: 400.0,
+                child: CupertinoDatePicker(
+                  mode: CupertinoDatePickerMode.date,
+                  minimumDate: minimum,
+                  maximumDate: maximum,
+                  onDateTimeChanged: (_) {},
+                  initialDateTime: DateTime(2018, 6, 15),
+                ),
+              ),
+            ),
+          ),
+        );
+
+        // days of a different min/max year are not affected.
+        expect(
+          tester.widget<Text>(find.text('14')).style!.color,
+          isNot(isSameColorAs(CupertinoColors.inactiveGray.color)),
+        );
+        expect(
+          tester.widget<Text>(find.text('16')).style!.color,
+          isNot(isSameColorAs(CupertinoColors.inactiveGray.color)),
+        );
+      },
+    );
 
     testWidgets('picker automatically scrolls away from invalid date on month change', (WidgetTester tester) async {
       late DateTime date;
@@ -1657,8 +1841,10 @@ void main() {
     void onSelectedItemChanged(int index) {
       lastSelectedItem = index;
     }
+    final FixedExtentScrollController scrollController1 = FixedExtentScrollController();
+    addTearDown(scrollController1.dispose);
     await tester.pumpWidget(_buildPicker(
-      controller: FixedExtentScrollController(),
+      controller: scrollController1,
       onSelectedItemChanged: onSelectedItemChanged,
     ));
 
@@ -1674,8 +1860,10 @@ void main() {
     await tester.pumpAndSettle();
     expect(lastSelectedItem, 2);
 
+    final FixedExtentScrollController scrollController2 = FixedExtentScrollController();
+    addTearDown(scrollController2.dispose);
     await tester.pumpWidget(_buildPicker(
-      controller: FixedExtentScrollController(),
+      controller: scrollController2,
       onSelectedItemChanged: onSelectedItemChanged,
     ));
 

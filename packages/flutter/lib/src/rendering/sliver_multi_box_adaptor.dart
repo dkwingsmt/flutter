@@ -151,7 +151,7 @@ class SliverMultiBoxAdaptorParentData extends SliverLogicalParentData with Conta
   bool _keptAlive = false;
 
   @override
-  String toString() => 'index=$index; ${keepAlive == true ? "keepAlive; " : ""}${super.toString()}';
+  String toString() => 'index=$index; ${keepAlive ? "keepAlive; " : ""}${super.toString()}';
 }
 
 /// A sliver with multiple box children.
@@ -184,8 +184,6 @@ abstract class RenderSliverMultiBoxAdaptor extends RenderSliver
        RenderSliverHelpers, RenderSliverWithKeepAliveMixin {
 
   /// Creates a sliver with multiple box children.
-  ///
-  /// The [childManager] argument must not be null.
   RenderSliverMultiBoxAdaptor({
     required RenderSliverBoxChildManager childManager,
   }) : _childManager = childManager {

@@ -296,8 +296,6 @@ enum ListTileTitleAlignment {
 /// Here is an example of a custom list item that resembles a YouTube-related
 /// video list item created with [Expanded] and [Container] widgets.
 ///
-/// ![Custom list item a](https://flutter.github.io/assets-for-api-docs/assets/widgets/custom_list_item_a.png)
-///
 /// ** See code in examples/api/lib/material/list_tile/custom_list_item.0.dart **
 /// {@end-tool}
 ///
@@ -305,8 +303,6 @@ enum ListTileTitleAlignment {
 /// Here is an example of an article list item with multiline titles and
 /// subtitles. It utilizes [Row]s and [Column]s, as well as [Expanded] and
 /// [AspectRatio] widgets to organize its layout.
-///
-/// ![Custom list item b](https://flutter.github.io/assets-for-api-docs/assets/widgets/custom_list_item_b.png)
 ///
 /// ** See code in examples/api/lib/material/list_tile/custom_list_item.1.dart **
 /// {@end-tool}
@@ -428,6 +424,7 @@ class ListTile extends StatelessWidget {
   /// line limits using [Text.maxLines].
   final bool isThreeLine;
 
+  /// {@template flutter.material.ListTile.dense}
   /// Whether this list tile is part of a vertically dense list.
   ///
   /// If this property is null then its value is based on [ListTileTheme.dense].
@@ -435,6 +432,7 @@ class ListTile extends StatelessWidget {
   /// Dense list tiles default to a smaller height.
   ///
   /// It is not recommended to set [dense] to true when [ThemeData.useMaterial3] is true.
+  /// {@endtemplate}
   final bool? dense;
 
   /// Defines how compact the list tile's layout will be.
@@ -513,22 +511,25 @@ class ListTile extends StatelessWidget {
   ///
   /// If this property is null, then [ListTileThemeData.titleTextStyle] is used.
   /// If that is also null and [ThemeData.useMaterial3] is true, [TextTheme.bodyLarge]
-  /// will be used. Otherwise, If ListTile style is [ListTileStyle.list],
-  /// [TextTheme.titleMedium] will be used and if ListTile style is [ListTileStyle.drawer],
-  /// [TextTheme.bodyLarge] will be used.
+  /// with [ColorScheme.onSurface] will be used. Otherwise, If ListTile style is
+  /// [ListTileStyle.list], [TextTheme.titleMedium] will be used and if ListTile style
+  /// is [ListTileStyle.drawer], [TextTheme.bodyLarge] will be used.
   final TextStyle? titleTextStyle;
 
   /// The text style for ListTile's [subtitle].
   ///
   /// If this property is null, then [ListTileThemeData.subtitleTextStyle] is used.
-  /// If that is also null, [TextTheme.bodyMedium] will be used.
+  /// If that is also null and [ThemeData.useMaterial3] is true, [TextTheme.bodyMedium]
+  /// with [ColorScheme.onSurfaceVariant] will be used, otherwise [TextTheme.bodyMedium]
+  /// with [TextTheme.bodySmall] color will be used.
   final TextStyle? subtitleTextStyle;
 
   /// The text style for ListTile's [leading] and [trailing].
   ///
   /// If this property is null, then [ListTileThemeData.leadingAndTrailingTextStyle] is used.
   /// If that is also null and [ThemeData.useMaterial3] is true, [TextTheme.labelSmall]
-  /// will be used, otherwise [TextTheme.bodyMedium] will be used.
+  /// with [ColorScheme.onSurfaceVariant] will be used, otherwise [TextTheme.bodyMedium]
+  /// will be used.
   final TextStyle? leadingAndTrailingTextStyle;
 
   /// Defines the font used for the [title].
@@ -802,7 +803,7 @@ class ListTile extends StatelessWidget {
       subtitleStyle = subtitleTextStyle
         ?? tileTheme.subtitleTextStyle
         ?? defaults.subtitleTextStyle!;
-      final Color? subtitleColor = effectiveColor ?? theme.textTheme.bodySmall!.color;
+      final Color? subtitleColor = effectiveColor;
       subtitleStyle = subtitleStyle.copyWith(
         color: subtitleColor,
         fontSize: _isDenseLayout(theme, tileTheme) ? 12.0 : null,
@@ -896,10 +897,6 @@ class ListTile extends StatelessWidget {
   @override
   void debugFillProperties(DiagnosticPropertiesBuilder properties) {
     super.debugFillProperties(properties);
-    properties.add(DiagnosticsProperty<Widget>('leading', leading, defaultValue: null));
-    properties.add(DiagnosticsProperty<Widget>('title', title, defaultValue: null));
-    properties.add(DiagnosticsProperty<Widget>('subtitle', subtitle, defaultValue: null));
-    properties.add(DiagnosticsProperty<Widget>('trailing', trailing, defaultValue: null));
     properties.add(FlagProperty('isThreeLine', value: isThreeLine, ifTrue:'THREE_LINE', ifFalse: 'TWO_LINE', showName: true, defaultValue: false));
     properties.add(FlagProperty('dense', value: dense, ifTrue: 'true', ifFalse: 'false', showName: true));
     properties.add(DiagnosticsProperty<VisualDensity>('visualDensity', visualDensity, defaultValue: null));
@@ -967,7 +964,7 @@ enum _ListTileSlot {
   trailing,
 }
 
-class _ListTile extends RenderObjectWidget with SlottedMultiChildRenderObjectWidgetMixin<_ListTileSlot> {
+class _ListTile extends SlottedMultiChildRenderObjectWidget<_ListTileSlot, RenderBox> {
   const _ListTile({
     this.leading,
     required this.title,
@@ -1005,16 +1002,12 @@ class _ListTile extends RenderObjectWidget with SlottedMultiChildRenderObjectWid
 
   @override
   Widget? childForSlot(_ListTileSlot slot) {
-    switch (slot) {
-      case _ListTileSlot.leading:
-        return leading;
-      case _ListTileSlot.title:
-        return title;
-      case _ListTileSlot.subtitle:
-        return subtitle;
-      case _ListTileSlot.trailing:
-        return trailing;
-    }
+    return switch (slot) {
+      _ListTileSlot.leading  => leading,
+      _ListTileSlot.title    => title,
+      _ListTileSlot.subtitle => subtitle,
+      _ListTileSlot.trailing => trailing,
+    };
   }
 
   @override
@@ -1049,7 +1042,7 @@ class _ListTile extends RenderObjectWidget with SlottedMultiChildRenderObjectWid
   }
 }
 
-class _RenderListTile extends RenderBox with SlottedContainerRenderObjectMixin<_ListTileSlot> {
+class _RenderListTile extends RenderBox with SlottedContainerRenderObjectMixin<_ListTileSlot, RenderBox> {
   _RenderListTile({
     required bool isDense,
     required VisualDensity visualDensity,
@@ -1524,16 +1517,15 @@ class _LisTileDefaultsM2 extends ListTileThemeData {
 
   @override
   TextStyle? get titleTextStyle {
-    switch (style!) {
-      case ListTileStyle.drawer:
-        return _textTheme.bodyLarge;
-      case ListTileStyle.list:
-        return _textTheme.titleMedium;
-    }
+    return switch (style!) {
+      ListTileStyle.drawer => _textTheme.bodyLarge,
+      ListTileStyle.list   => _textTheme.titleMedium,
+    };
   }
 
   @override
-  TextStyle? get subtitleTextStyle => _textTheme.bodyMedium;
+  TextStyle? get subtitleTextStyle => _textTheme.bodyMedium!
+    .copyWith(color: _textTheme.bodySmall!.color);
 
   @override
   TextStyle? get leadingAndTrailingTextStyle => _textTheme.bodyMedium;
@@ -1561,8 +1553,6 @@ class _LisTileDefaultsM2 extends ListTileThemeData {
 // Design token database by the script:
 //   dev/tools/gen_defaults/bin/gen_defaults.dart.
 
-// Token database version: v0_162
-
 class _LisTileDefaultsM3 extends ListTileThemeData {
   _LisTileDefaultsM3(this.context)
     : super(
@@ -1581,13 +1571,13 @@ class _LisTileDefaultsM3 extends ListTileThemeData {
   Color? get tileColor =>  Colors.transparent;
 
   @override
-  TextStyle? get titleTextStyle => _textTheme.bodyLarge;
+  TextStyle? get titleTextStyle => _textTheme.bodyLarge!.copyWith(color: _colors.onSurface);
 
   @override
-  TextStyle? get subtitleTextStyle => _textTheme.bodyMedium;
+  TextStyle? get subtitleTextStyle => _textTheme.bodyMedium!.copyWith(color: _colors.onSurfaceVariant);
 
   @override
-  TextStyle? get leadingAndTrailingTextStyle => _textTheme.labelSmall;
+  TextStyle? get leadingAndTrailingTextStyle => _textTheme.labelSmall!.copyWith(color: _colors.onSurfaceVariant);
 
   @override
   Color? get selectedColor => _colors.primary;

@@ -36,14 +36,17 @@ T _cast<T>(Object? object) {
 ///
 /// If [deltaFileTransfer] is true, the proxy will use an rsync-like algorithm that
 /// only transfers the changed part of the application package for deployment.
-class ProxiedDevices extends DeviceDiscovery {
+class ProxiedDevices extends PollingDeviceDiscovery {
   ProxiedDevices(this.connection, {
     bool deltaFileTransfer = true,
     bool enableDdsProxy = false,
     required Logger logger,
+    FileTransfer fileTransfer = const FileTransfer(),
   }) : _deltaFileTransfer = deltaFileTransfer,
        _enableDdsProxy = enableDdsProxy,
-       _logger = logger;
+       _logger = logger,
+       _fileTransfer = fileTransfer,
+       super('Proxied devices');
 
   /// [DaemonConnection] used to communicate with the daemon.
   final DaemonConnection connection;
@@ -53,6 +56,8 @@ class ProxiedDevices extends DeviceDiscovery {
   final bool _deltaFileTransfer;
 
   final bool _enableDdsProxy;
+
+  final FileTransfer _fileTransfer;
 
   @override
   bool get supportsPlatform => true;
@@ -89,6 +94,9 @@ class ProxiedDevices extends DeviceDiscovery {
   }
 
   @override
+  Future<List<Device>> pollingGetDevices({Duration? timeout}) => discoverDevices(timeout: timeout);
+
+  @override
   List<String> get wellKnownIds => const <String>[];
 
   @visibleForTesting
@@ -113,6 +121,7 @@ class ProxiedDevices extends DeviceDiscovery {
       supportsFastStart: _cast<bool>(capabilities['fastStart']),
       supportsHardwareRendering: _cast<bool>(capabilities['hardwareRendering']),
       logger: _logger,
+      fileTransfer: _fileTransfer,
     );
   }
 }
@@ -145,6 +154,7 @@ class ProxiedDevice extends Device {
     required this.supportsFastStart,
     required bool supportsHardwareRendering,
     required Logger logger,
+    FileTransfer fileTransfer = const FileTransfer(),
   }): _deltaFileTransfer = deltaFileTransfer,
       _enableDdsProxy = enableDdsProxy,
       _isLocalEmulator = isLocalEmulator,
@@ -153,6 +163,7 @@ class ProxiedDevice extends Device {
       _supportsHardwareRendering = supportsHardwareRendering,
       _targetPlatform = targetPlatform,
       _logger = logger,
+      _fileTransfer = fileTransfer,
       super(id,
         category: category,
         platformType: platformType,
@@ -166,6 +177,8 @@ class ProxiedDevice extends Device {
   final bool _deltaFileTransfer;
 
   final bool _enableDdsProxy;
+
+  final FileTransfer _fileTransfer;
 
   @override
   final String name;
@@ -355,7 +368,7 @@ class ProxiedDevice extends Device {
 
     Map<String, Object?>? rollingHashResultJson;
     if (_deltaFileTransfer) {
-     rollingHashResultJson = _cast<Map<String, Object?>?>(await connection.sendRequest('proxy.calculateFileHashes', args));
+      rollingHashResultJson = _cast<Map<String, Object?>?>(await connection.sendRequest('proxy.calculateFileHashes', args));
     }
 
     if (rollingHashResultJson == null) {
@@ -367,18 +380,31 @@ class ProxiedDevice extends Device {
       await connection.sendRequest('proxy.writeTempFile', args, await binary.readAsBytes());
     } else {
       final BlockHashes rollingHashResult = BlockHashes.fromJson(rollingHashResultJson);
-      final List<FileDeltaBlock> delta = await FileTransfer().computeDelta(binary, rollingHashResult);
+      final List<FileDeltaBlock> delta = await _fileTransfer.computeDelta(binary, rollingHashResult);
 
       // Delta is empty if the file does not need to be updated
       if (delta.isNotEmpty) {
         final List<Map<String, Object>> deltaJson = delta.map((FileDeltaBlock block) => block.toJson()).toList();
-        final Uint8List buffer = await FileTransfer().binaryForRebuilding(binary, delta);
+        final Uint8List buffer = await _fileTransfer.binaryForRebuilding(binary, delta);
 
         await connection.sendRequest('proxy.updateFile', <String, Object>{
           'path': fileName,
           'delta': deltaJson,
         }, buffer);
       }
+    }
+
+    if (_deltaFileTransfer) {
+      // Ask the daemon to precache the hash content for subsequent runs.
+      // Wait for several seconds for the app to be launched, to not interfere
+      // with whatever the daemon is doing.
+      unawaited(() async {
+        await Future<void>.delayed(const Duration(seconds: 60));
+        await connection.sendRequest('proxy.calculateFileHashes', <String, Object>{
+          'path': fileName,
+          'cacheResult': true,
+        });
+      }());
     }
 
     final String id = _cast<String>(await connection.sendRequest('device.uploadApplicationPackage', <String, Object>{
@@ -638,7 +664,7 @@ class ProxiedPortForwarder extends DevicePortForwarder {
 }
 
 Future<ServerSocket> _defaultCreateServerSocket(Logger logger, int? hostPort, bool? ipv6) async {
-  if (ipv6 == null || ipv6 == false) {
+  if (ipv6 == null || !ipv6) {
     try {
       return await ServerSocket.bind(InternetAddress.loopbackIPv4, hostPort ?? 0);
     } on SocketException {
@@ -771,6 +797,11 @@ class ProxiedDartDevelopmentService implements DartDevelopmentService {
 
     _localUri = remoteUri.replace(port: localPort);
     _logger.printTrace('Local port forwarded DDS on $_localUri.');
+    _logger.sendEvent('device.proxied_dds_forwarded', <String, String>{
+      'deviceId': deviceId,
+      'remoteUri': remoteUri.toString(),
+      'localUri': _localUri!.toString(),
+    });
   }
 
   @override

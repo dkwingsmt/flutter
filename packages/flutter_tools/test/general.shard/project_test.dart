@@ -7,11 +7,11 @@ import 'package:file/memory.dart';
 import 'package:flutter_tools/src/android/android_sdk.dart';
 import 'package:flutter_tools/src/android/android_studio.dart';
 import 'package:flutter_tools/src/android/gradle_utils.dart' as gradle_utils;
+import 'package:flutter_tools/src/android/java.dart';
 import 'package:flutter_tools/src/base/file_system.dart';
 import 'package:flutter_tools/src/base/logger.dart';
 import 'package:flutter_tools/src/base/os.dart';
-import 'package:flutter_tools/src/base/platform.dart';
-import 'package:flutter_tools/src/base/process.dart';
+import 'package:flutter_tools/src/base/version.dart';
 import 'package:flutter_tools/src/build_info.dart';
 import 'package:flutter_tools/src/cache.dart';
 import 'package:flutter_tools/src/convert.dart';
@@ -407,9 +407,7 @@ void main() {
     });
 
     group('java gradle agp compatibility', () {
-      Future<FlutterProject?> configureJavaGradleAgpForTest(
-        FakeAndroidSdkWithDir androidSdk, {
-        required String javaV,
+      Future<FlutterProject?> configureGradleAgpForTest({
         required String gradleV,
         required String agpV,
       }) async {
@@ -422,7 +420,6 @@ dependencies {
 ''';
         });
         addGradleWrapperFile(project.directory, gradleV);
-        androidSdk.javaVersion = javaV;
         return project;
       }
 
@@ -431,22 +428,22 @@ dependencies {
       // especially important for filesystem.
       group('_', () {
         final FakeProcessManager processManager;
+        final Java java;
         final AndroidStudio androidStudio;
         final FakeAndroidSdkWithDir androidSdk;
         final FileSystem fileSystem = getFileSystemForPlatform();
+        java = FakeJava(version: Version(17, 0, 2));
         processManager = FakeProcessManager.empty();
         androidStudio = FakeAndroidStudio();
         androidSdk =
-            FakeAndroidSdkWithDir(fileSystem.currentDirectory, androidStudio);
+            FakeAndroidSdkWithDir(fileSystem.currentDirectory);
         fileSystem.currentDirectory
             .childDirectory(androidStudio.javaPath!)
             .createSync();
         _testInMemory(
           'flamingo values are compatible',
           () async {
-            final FlutterProject? project = await configureJavaGradleAgpForTest(
-              androidSdk,
-              javaV: '17.0.2',
+            final FlutterProject? project = await configureGradleAgpForTest(
               gradleV: '8.0',
               agpV: '7.4.2',
             );
@@ -454,6 +451,7 @@ dependencies {
                 await project!.android.hasValidJavaGradleAgpVersions();
             expect(value.success, isTrue);
           },
+          java: java,
           androidStudio: androidStudio,
           processManager: processManager,
           androidSdk: androidSdk,
@@ -461,22 +459,22 @@ dependencies {
       });
       group('_', () {
         final FakeProcessManager processManager;
+        final Java java;
         final AndroidStudio androidStudio;
         final FakeAndroidSdkWithDir androidSdk;
         final FileSystem fileSystem = getFileSystemForPlatform();
+        java = FakeJava(version: const Version.withText(1, 8, 0, '1.8.0_242'));
         processManager = FakeProcessManager.empty();
         androidStudio = FakeAndroidStudio();
         androidSdk =
-            FakeAndroidSdkWithDir(fileSystem.currentDirectory, androidStudio);
+            FakeAndroidSdkWithDir(fileSystem.currentDirectory);
         fileSystem.currentDirectory
             .childDirectory(androidStudio.javaPath!)
             .createSync();
         _testInMemory(
           'java 8 era values are compatible',
           () async {
-            final FlutterProject? project = await configureJavaGradleAgpForTest(
-              androidSdk,
-              javaV: '1.8.0_242',
+            final FlutterProject? project = await configureGradleAgpForTest(
               gradleV: '6.7.1',
               agpV: '4.2.0',
             );
@@ -484,6 +482,7 @@ dependencies {
                 await project!.android.hasValidJavaGradleAgpVersions();
             expect(value.success, isTrue);
           },
+          java: java,
           androidStudio: androidStudio,
           processManager: processManager,
           androidSdk: androidSdk,
@@ -492,22 +491,22 @@ dependencies {
 
       group('_', () {
         final FakeProcessManager processManager;
+        final Java java;
         final AndroidStudio androidStudio;
         final FakeAndroidSdkWithDir androidSdk;
         final FileSystem fileSystem = getFileSystemForPlatform();
         processManager = FakeProcessManager.empty();
+        java = FakeJava(version: Version(11, 0, 14));
         androidStudio = FakeAndroidStudio();
         androidSdk =
-            FakeAndroidSdkWithDir(fileSystem.currentDirectory, androidStudio);
+            FakeAndroidSdkWithDir(fileSystem.currentDirectory);
         fileSystem.currentDirectory
             .childDirectory(androidStudio.javaPath!)
             .createSync();
         _testInMemory(
           'electric eel era values are compatible',
           () async {
-            final FlutterProject? project = await configureJavaGradleAgpForTest(
-              androidSdk,
-              javaV: '11.0.14',
+            final FlutterProject? project = await configureGradleAgpForTest(
               gradleV: '7.3.3',
               agpV: '7.2.0',
             );
@@ -515,32 +514,35 @@ dependencies {
                 await project!.android.hasValidJavaGradleAgpVersions();
             expect(value.success, isTrue);
           },
+          java: java,
           androidStudio: androidStudio,
           processManager: processManager,
           androidSdk: androidSdk,
         );
       });
       group('_', () {
+        const String javaV = '17.0.2';
+        const String gradleV = '6.7.3';
+        const String agpV = '7.2.0';
+
         final FakeProcessManager processManager;
+        final Java java;
         final AndroidStudio androidStudio;
         final FakeAndroidSdkWithDir androidSdk;
         final FileSystem fileSystem = getFileSystemForPlatform();
         processManager = FakeProcessManager.empty();
+        java = FakeJava(version: Version.parse(javaV));
         androidStudio = FakeAndroidStudio();
         androidSdk =
-            FakeAndroidSdkWithDir(fileSystem.currentDirectory, androidStudio);
+            FakeAndroidSdkWithDir(fileSystem.currentDirectory);
         fileSystem.currentDirectory
             .childDirectory(androidStudio.javaPath!)
             .createSync();
         _testInMemory(
           'incompatible everything',
           () async {
-            const String javaV = '17.0.2';
-            const String gradleV = '6.7.3';
-            const String agpV = '7.2.0';
-            final FlutterProject? project = await configureJavaGradleAgpForTest(
-              androidSdk,
-              javaV: javaV,
+
+            final FlutterProject? project = await configureGradleAgpForTest(
               gradleV: gradleV,
               agpV: agpV,
             );
@@ -563,32 +565,34 @@ dependencies {
             expect(value.description, contains(RegExp(javaV)));
             expect(value.description, contains(RegExp(gradleV)));
           },
+          java: java,
           androidStudio: androidStudio,
           processManager: processManager,
           androidSdk: androidSdk,
         );
       });
       group('_', () {
+        const String javaV = '17.0.2';
+        const String gradleV = '6.7.3';
+        const String agpV = '4.2.0';
+
         final FakeProcessManager processManager;
+        final Java java;
         final AndroidStudio androidStudio;
         final FakeAndroidSdkWithDir androidSdk;
         final FileSystem fileSystem = getFileSystemForPlatform();
         processManager = FakeProcessManager.empty();
+        java = FakeJava(version: Version(17, 0, 2));
         androidStudio = FakeAndroidStudio();
         androidSdk =
-            FakeAndroidSdkWithDir(fileSystem.currentDirectory, androidStudio);
+            FakeAndroidSdkWithDir(fileSystem.currentDirectory);
         fileSystem.currentDirectory
             .childDirectory(androidStudio.javaPath!)
             .createSync();
         _testInMemory(
           'incompatible java/gradle only',
           () async {
-            const String javaV = '17.0.2';
-            const String gradleV = '6.7.3';
-            const String agpV = '4.2.0';
-            final FlutterProject? project = await configureJavaGradleAgpForTest(
-              androidSdk,
-              javaV: javaV,
+            final FlutterProject? project = await configureGradleAgpForTest(
               gradleV: gradleV,
               agpV: agpV,
             );
@@ -606,6 +610,7 @@ dependencies {
             expect(value.description, contains(RegExp(javaV)));
             expect(value.description, contains(RegExp(gradleV)));
           },
+          java: java,
           androidStudio: androidStudio,
           processManager: processManager,
           androidSdk: androidSdk,
@@ -613,25 +618,24 @@ dependencies {
       });
       group('_', () {
         final FakeProcessManager processManager;
+        final Java java;
         final AndroidStudio androidStudio;
         final FakeAndroidSdkWithDir androidSdk;
         final FileSystem fileSystem = getFileSystemForPlatform();
+        java = FakeJava(version: Version(11, 0, 2));
         processManager = FakeProcessManager.empty();
         androidStudio = FakeAndroidStudio();
         androidSdk =
-            FakeAndroidSdkWithDir(fileSystem.currentDirectory, androidStudio);
+            FakeAndroidSdkWithDir(fileSystem.currentDirectory);
         fileSystem.currentDirectory
             .childDirectory(androidStudio.javaPath!)
             .createSync();
         _testInMemory(
           'incompatible gradle/agp only',
           () async {
-            const String javaV = '11.0.2';
             const String gradleV = '7.0.3';
             const String agpV = '7.1.0';
-            final FlutterProject? project = await configureJavaGradleAgpForTest(
-              androidSdk,
-              javaV: javaV,
+            final FlutterProject? project = await configureGradleAgpForTest(
               gradleV: gradleV,
               agpV: agpV,
             );
@@ -649,6 +653,49 @@ dependencies {
             expect(value.description, contains(RegExp(gradleV)));
             expect(value.description, contains(RegExp(agpV)));
           },
+          java: java,
+          androidStudio: androidStudio,
+          processManager: processManager,
+          androidSdk: androidSdk,
+        );
+      });
+      group('_', () {
+        final FakeProcessManager processManager;
+        final Java java;
+        final AndroidStudio androidStudio;
+        final FakeAndroidSdkWithDir androidSdk;
+        final FileSystem fileSystem = getFileSystemForPlatform();
+        java = FakeJava(version: Version(11, 0, 2));
+        processManager = FakeProcessManager.empty();
+        androidStudio = FakeAndroidStudio();
+        androidSdk =
+            FakeAndroidSdkWithDir(fileSystem.currentDirectory);
+        fileSystem.currentDirectory
+            .childDirectory(androidStudio.javaPath!)
+            .createSync();
+        _testInMemory(
+          'null agp only',
+          () async {
+            const String gradleV = '7.0.3';
+            final FlutterProject? project = await configureGradleAgpForTest(
+              gradleV: gradleV,
+              agpV: '',
+            );
+            final CompatibilityResult value =
+                await project!.android.hasValidJavaGradleAgpVersions();
+            expect(value.success, isFalse);
+            // Should not have the valid string.
+            expect(
+                value.description,
+                isNot(
+                    contains(RegExp(AndroidProject.validJavaGradleAgpString))));
+            // On gradle/agp error print help url null value for agp.
+            expect(value.description,
+                contains(RegExp(AndroidProject.gradleAgpCompatUrl)));
+            expect(value.description, contains(RegExp(gradleV)));
+            expect(value.description, contains(RegExp('null')));
+          },
+          java: java,
           androidStudio: androidStudio,
           processManager: processManager,
           androidSdk: androidSdk,
@@ -685,6 +732,60 @@ apply plugin: 'kotlin-android'
 ''';
         });
         expect(project.android.isKotlin, isTrue);
+      }, overrides: <Type, Generator>{
+        FileSystem: () => fs,
+        ProcessManager: () => FakeProcessManager.any(),
+        XcodeProjectInterpreter: () => xcodeProjectInterpreter,
+        FlutterProjectFactory: () => flutterProjectFactory,
+      });
+
+    testUsingContext('kotlin host app language with Gradle Kotlin DSL', () async {
+      final FlutterProject project = await someProject();
+
+        addAndroidGradleFile(project.directory,
+          kotlinDsl: true,
+          gradleFileContent: () {
+            return '''
+plugins {
+    id "com.android.application"
+    id "kotlin-android"
+    id "dev.flutter.flutter-gradle-plugin"
+}
+''';
+        });
+        expect(project.android.isKotlin, isTrue);
+      }, overrides: <Type, Generator>{
+        FileSystem: () => fs,
+        ProcessManager: () => FakeProcessManager.any(),
+        XcodeProjectInterpreter: () => xcodeProjectInterpreter,
+        FlutterProjectFactory: () => flutterProjectFactory,
+      });
+
+    testUsingContext('Gradle Groovy files are preferred to Gradle Kotlin files', () async {
+      final FlutterProject project = await someProject();
+
+        addAndroidGradleFile(project.directory,
+          gradleFileContent: () {
+            return '''
+plugins {
+    id "com.android.application"
+    id "dev.flutter.flutter-gradle-plugin"
+}
+''';
+        });
+        addAndroidGradleFile(project.directory,
+          kotlinDsl: true,
+          gradleFileContent: () {
+            return '''
+plugins {
+    id("com.android.application")
+    id("kotlin-android")
+    id("dev.flutter.flutter-gradle-plugin")
+}
+''';
+        });
+
+        expect(project.android.isKotlin, isFalse);
       }, overrides: <Type, Generator>{
         FileSystem: () => fs,
         ProcessManager: () => FakeProcessManager.any(),
@@ -728,7 +829,6 @@ apply plugin: 'kotlin-android'
 
           const XcodeProjectBuildContext buildContext = XcodeProjectBuildContext(
             target: 'Runner',
-            scheme: 'Debug',
             configuration: 'config',
           );
           xcodeProjectInterpreter.buildSettingsByBuildContext[buildContext] = <String, String>{
@@ -746,13 +846,15 @@ apply plugin: 'kotlin-android'
               'applinks:example2.com',
             ],
           );
-          final XcodeUniversalLinkSettings settings = await project.ios.universalLinkSettings(
+          final String outputFilePath = await project.ios.outputsUniversalLinkSettings(
             target: 'Runner',
-            scheme: 'Debug',
             configuration: 'config',
           );
+          final File outputFile = fs.file(outputFilePath);
+          final Map<String, Object?> json = jsonDecode(outputFile.readAsStringSync()) as Map<String, Object?>;
+
           expect(
-            settings.associatedDomains,
+            json['associatedDomains'],
             unorderedEquals(
               <String>[
                 'example.com',
@@ -760,8 +862,8 @@ apply plugin: 'kotlin-android'
               ],
             ),
           );
-          expect(settings.teamIdentifier, 'ABC');
-          expect(settings.bundleIdentifier, 'io.flutter.someProject.suffix');
+          expect(json['teamIdentifier'], 'ABC');
+          expect(json['bundleIdentifier'], 'io.flutter.someProject.suffix');
         });
 
         testWithMocks('can handle entitlement file in nested directory structure.', () async {
@@ -773,7 +875,6 @@ apply plugin: 'kotlin-android'
 
           const XcodeProjectBuildContext buildContext = XcodeProjectBuildContext(
             target: 'Runner',
-            scheme: 'Debug',
             configuration: 'config',
           );
           xcodeProjectInterpreter.buildSettingsByBuildContext[buildContext] = <String, String>{
@@ -791,13 +892,15 @@ apply plugin: 'kotlin-android'
               'applinks:example2.com',
             ],
           );
-          final XcodeUniversalLinkSettings settings = await project.ios.universalLinkSettings(
+
+          final String outputFilePath = await project.ios.outputsUniversalLinkSettings(
             target: 'Runner',
-            scheme: 'Debug',
             configuration: 'config',
           );
+          final File outputFile = fs.file(outputFilePath);
+          final Map<String, Object?> json = jsonDecode(outputFile.readAsStringSync()) as Map<String, Object?>;
           expect(
-            settings.associatedDomains,
+            json['associatedDomains'],
             unorderedEquals(
               <String>[
                 'example.com',
@@ -805,8 +908,8 @@ apply plugin: 'kotlin-android'
               ],
             ),
           );
-          expect(settings.teamIdentifier, 'ABC');
-          expect(settings.bundleIdentifier, 'io.flutter.someProject.suffix');
+          expect(json['teamIdentifier'], 'ABC');
+          expect(json['bundleIdentifier'], 'io.flutter.someProject.suffix');
         });
 
         testWithMocks('return empty when no entitlement', () async {
@@ -816,7 +919,6 @@ apply plugin: 'kotlin-android'
 
           const XcodeProjectBuildContext buildContext = XcodeProjectBuildContext(
             target: 'Runner',
-            scheme: 'Debug',
             configuration: 'config',
           );
           xcodeProjectInterpreter.buildSettingsByBuildContext[buildContext] = <String, String>{
@@ -825,13 +927,15 @@ apply plugin: 'kotlin-android'
           };
           xcodeProjectInterpreter.xcodeProjectInfo = XcodeProjectInfo(<String>[], <String>[], <String>['Runner'], logger);
           testPlistUtils.setProperty(PlistParser.kCFBundleIdentifierKey, r'$(PRODUCT_BUNDLE_IDENTIFIER)');
-          final XcodeUniversalLinkSettings settings = await project.ios.universalLinkSettings(
+          final String outputFilePath = await project.ios.outputsUniversalLinkSettings(
             target: 'Runner',
-            scheme: 'Debug',
             configuration: 'config',
           );
-          expect(settings.teamIdentifier, 'ABC');
-          expect(settings.bundleIdentifier, 'io.flutter.someProject');
+          final File outputFile = fs.file(outputFilePath);
+          final Map<String, Object?> json = jsonDecode(outputFile.readAsStringSync()) as Map<String, Object?>;
+          expect(json['teamIdentifier'], 'ABC');
+          expect(json['bundleIdentifier'], 'io.flutter.someProject');
+          expect(json['associatedDomains'], unorderedEquals(<String>[]));
         });
       });
 
@@ -1404,6 +1508,7 @@ void _testInMemory(
   String description,
   Future<void> Function() testMethod, {
   FileSystem? fileSystem,
+  Java? java,
   AndroidStudio? androidStudio,
   ProcessManager? processManager,
   AndroidSdk? androidSdk,
@@ -1466,8 +1571,9 @@ void _testInMemory(
     overrides: <Type, Generator>{
       FileSystem: () => testFileSystem,
       ProcessManager: () => processManager ?? FakeProcessManager.any(),
+      Java : () => java,
       AndroidStudio: () => androidStudio ?? FakeAndroidStudio(),
-      // Intentionlly null if not set. Some ios tests fail if this is a fake.
+      // Intentionally null if not set. Some ios tests fail if this is a fake.
       AndroidSdk: () => androidSdk,
       Cache: () => Cache(
             logger: globals.logger,
@@ -1516,11 +1622,18 @@ void addIosProjectFile(Directory directory, {required String Function() projectF
     ..writeAsStringSync(projectFileContent());
 }
 
-void addAndroidGradleFile(Directory directory, { required String Function() gradleFileContent }) {
+/// Adds app-level Gradle Groovy build file (build.gradle) to [directory].
+///
+/// If [kotlinDsl] is true, then build.gradle.kts is created instead of
+/// build.gradle. It's the caller's responsibility to make sure that
+/// [gradleFileContent] is consistent with the value of the [kotlinDsl] flag.
+void addAndroidGradleFile(Directory directory, {
+  required String Function() gradleFileContent, bool kotlinDsl = false,
+}) {
   directory
       .childDirectory('android')
       .childDirectory('app')
-      .childFile('build.gradle')
+      .childFile(kotlinDsl ? 'build.gradle.kts' : 'build.gradle')
     ..createSync(recursive: true)
     ..writeAsStringSync(gradleFileContent());
 }
@@ -1539,7 +1652,6 @@ void addGradleWrapperFile(Directory directory, String gradleVersion) {
       .childDirectory(gradle_utils.gradleWrapperDirectoryName)
       .childFile(gradle_utils.gradleWrapperPropertiesFilename)
     ..createSync(recursive: true)
-    // ignore: unnecessary_string_escapes
     ..writeAsStringSync('''
 distributionBase=GRADLE_USER_HOME
 distributionPath=wrapper/dists
@@ -1557,8 +1669,8 @@ FileSystem getFileSystemForPlatform() {
   );
 }
 
-void addAndroidWithGroup(Directory directory, String id) {
-  directory.childDirectory('android').childFile('build.gradle')
+void addAndroidWithGroup(Directory directory, String id, {bool kotlinDsl = false}) {
+  directory.childDirectory('android').childFile(kotlinDsl ? 'build.gradle.kts' : 'build.gradle')
     ..createSync(recursive: true)
     ..writeAsStringSync(gradleFileWithGroupId(id));
 }
@@ -1610,7 +1722,7 @@ String gradleFileWithApplicationId(String id) {
   return '''
 apply plugin: 'com.android.application'
 android {
-    compileSdkVersion 31
+    compileSdk 34
 
     defaultConfig {
         applicationId '$id'
@@ -1627,7 +1739,7 @@ version '1.0-SNAPSHOT'
 apply plugin: 'com.android.library'
 
 android {
-    compileSdkVersion 31
+    compileSdk 34
 }
 ''';
 }
@@ -1667,37 +1779,10 @@ class FakeXcodeProjectInterpreter extends Fake implements XcodeProjectInterprete
 }
 
 class FakeAndroidSdkWithDir extends Fake implements AndroidSdk {
-  FakeAndroidSdkWithDir(this._directory, AndroidStudio _androidStudio) {
-    _javaPath = '${_androidStudio.javaPath}/bin/java';
-  }
-  late String _javaPath;
-  String? javaVersion;
+  FakeAndroidSdkWithDir(this._directory);
 
   final Directory _directory;
 
   @override
-  late bool platformToolsAvailable;
-
-  @override
-  late bool licensesAvailable;
-
-  @override
-  AndroidSdkVersion? latestVersion;
-
-  @override
   Directory get directory => _directory;
-
-  @override
-  Map<String, String> get sdkManagerEnv => <String, String>{'PATH': _javaPath};
-
-  @override
-  String? getJavaVersion({
-    required AndroidStudio? androidStudio,
-    required FileSystem fileSystem,
-    required OperatingSystemUtils operatingSystemUtils,
-    required Platform platform,
-    required ProcessUtils processUtils,
-  }) {
-    return javaVersion;
-  }
 }

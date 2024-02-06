@@ -8,7 +8,6 @@ import 'package:flutter/material.dart';
 
 const Widget divider = SizedBox(height: 10);
 const double narrowScreenWidthThreshold = 400;
-const double imageSize = 150;
 
 void main() => runApp(DynamicColorExample());
 
@@ -367,12 +366,10 @@ class ColorChip extends StatelessWidget {
 
   static Color contrastColor(Color color) {
     final Brightness brightness = ThemeData.estimateBrightnessForColor(color);
-    switch (brightness) {
-      case Brightness.dark:
-        return Colors.white;
-      case Brightness.light:
-        return Colors.black;
-    }
+    return switch (brightness) {
+      Brightness.dark  => Colors.white,
+      Brightness.light => Colors.black,
+    };
   }
 
   @override

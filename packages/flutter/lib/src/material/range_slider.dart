@@ -109,11 +109,12 @@ class RangeSlider extends StatefulWidget {
   /// Creates a Material Design range slider.
   ///
   /// The range slider widget itself does not maintain any state. Instead, when
-  /// the state of the slider changes, the widget calls the [onChanged] callback.
-  /// Most widgets that use a range slider will listen for the [onChanged] callback
-  /// and rebuild the slider with new [values] to update the visual appearance of
-  /// the slider. To know when the value starts to change, or when it is done
-  /// changing, set the optional callbacks [onChangeStart] and/or [onChangeEnd].
+  /// the state of the slider changes, the widget calls the [onChanged]
+  /// callback. Most widgets that use a range slider will listen for the
+  /// [onChanged] callback and rebuild the slider with new [values] to update
+  /// the visual appearance of the slider. To know when the value starts to
+  /// change, or when it is done changing, set the optional callbacks
+  /// [onChangeStart] and/or [onChangeEnd].
   ///
   /// * [values], which determines currently selected values for this range
   ///   slider.
@@ -128,11 +129,15 @@ class RangeSlider extends StatefulWidget {
   /// [inactiveColor] properties, although more fine-grained control of the
   /// appearance is achieved using a [SliderThemeData].
   ///
-  /// The [values], [min], [max] must not be null. The [min] must be less than
-  /// or equal to the [max]. [values].start must be less than or equal to
-  /// [values].end. [values].start and [values].end must be greater than or
-  /// equal to the [min] and less than or equal to the [max]. The [divisions]
-  /// must be null or greater than 0.
+  /// The [min] must be less than or equal to the [max].
+  ///
+  /// The [RangeValues.start] attribute of the [values] parameter must be less
+  /// than or equal to its [RangeValues.end] attribute. The [RangeValues.start]
+  /// and [RangeValues.end] attributes of the [values] parameter must be greater
+  /// than or equal to the [min] parameter and less than or equal to the [max]
+  /// parameter.
+  ///
+  /// The [divisions] parameter must be null or greater than zero.
   RangeSlider({
     super.key,
     required this.values,
@@ -484,10 +489,9 @@ class _RangeSliderState extends State<RangeSlider> with TickerProviderStateMixin
     enableController.dispose();
     startPositionController.dispose();
     endPositionController.dispose();
-    if (overlayEntry != null) {
-      overlayEntry!.remove();
-      overlayEntry = null;
-    }
+    overlayEntry?.remove();
+    overlayEntry?.dispose();
+    overlayEntry = null;
     super.dispose();
   }
 
@@ -667,6 +671,10 @@ class _RangeSliderState extends State<RangeSlider> with TickerProviderStateMixin
     // in slider.dart.
     Size screenSize() => MediaQuery.sizeOf(context);
 
+    final double fontSize = sliderTheme.valueIndicatorTextStyle?.fontSize ?? kDefaultFontSize;
+    final double fontSizeToScale = fontSize == 0.0 ? kDefaultFontSize : fontSize;
+    final double effectiveTextScale = MediaQuery.textScalerOf(context).scale(fontSizeToScale) / fontSizeToScale;
+
     return FocusableActionDetector(
       enabled: _enabled,
       onShowHoverHighlight: _handleHoverChanged,
@@ -679,7 +687,7 @@ class _RangeSliderState extends State<RangeSlider> with TickerProviderStateMixin
           divisions: widget.divisions,
           labels: widget.labels,
           sliderTheme: sliderTheme,
-          textScaleFactor: MediaQuery.of(context).textScaleFactor,
+          textScaleFactor: effectiveTextScale,
           screenSize: screenSize(),
           onChanged: _enabled && (widget.max > widget.min) ? _handleChanged : null,
           onChangeStart: widget.onChangeStart != null ? _handleDragStart : null,
@@ -833,7 +841,6 @@ class _RenderRangeSlider extends RenderBox with RelayoutWhenSystemFontsChangeMix
       ..team = team
       ..onTapDown = _handleTapDown
       ..onTapUp = _handleTapUp
-      ..onTapCancel = _handleTapCancel
       ..gestureSettings = gestureSettings;
     _overlayAnimation = CurvedAnimation(
       parent: _state.overlayController,
@@ -843,8 +850,9 @@ class _RenderRangeSlider extends RenderBox with RelayoutWhenSystemFontsChangeMix
       parent: _state.valueIndicatorController,
       curve: Curves.fastOutSlowIn,
     )..addStatusListener((AnimationStatus status) {
-      if (status == AnimationStatus.dismissed && _state.overlayEntry != null) {
-        _state.overlayEntry!.remove();
+      if (status == AnimationStatus.dismissed) {
+        _state.overlayEntry?.remove();
+        _state.overlayEntry?.dispose();
         _state.overlayEntry = null;
       }
     });
@@ -896,8 +904,8 @@ class _RenderRangeSlider extends RenderBox with RelayoutWhenSystemFontsChangeMix
   late TapGestureRecognizer _tap;
   bool _active = false;
   late RangeValues _newValues;
-  late Offset _startThumbCenter;
-  late Offset _endThumbCenter;
+  Offset _startThumbCenter = Offset.zero;
+  Offset _endThumbCenter = Offset.zero;
   Rect? overlayStartRect;
   Rect? overlayEndRect;
 
@@ -1129,6 +1137,7 @@ class _RenderRangeSlider extends RenderBox with RelayoutWhenSystemFontsChangeMix
   }
 
   void _updateLabelPainter(Thumb thumb) {
+    final RangeLabels? labels = this.labels;
     if (labels == null) {
       return;
     }
@@ -1137,25 +1146,21 @@ class _RenderRangeSlider extends RenderBox with RelayoutWhenSystemFontsChangeMix
     final TextPainter labelPainter;
     switch (thumb) {
       case Thumb.start:
-        text = labels!.start;
+        text = labels.start;
         labelPainter = _startLabelPainter;
       case Thumb.end:
-        text = labels!.end;
+        text = labels.end;
         labelPainter = _endLabelPainter;
     }
 
-    if (labels != null) {
-      labelPainter
-        ..text = TextSpan(
-          style: _sliderTheme.valueIndicatorTextStyle,
-          text: text,
-        )
-        ..textDirection = textDirection
-        ..textScaleFactor = textScaleFactor
-        ..layout();
-    } else {
-      labelPainter.text = null;
-    }
+    labelPainter
+      ..text = TextSpan(
+        style: _sliderTheme.valueIndicatorTextStyle,
+        text: text,
+      )
+      ..textDirection = textDirection
+      ..textScaleFactor = textScaleFactor
+      ..layout();
     // Changing the textDirection can result in the layout changing, because the
     // bidi algorithm might line up the glyphs differently which can result in
     // different ligatures, different shapes, etc. So we always markNeedsLayout.
@@ -1192,6 +1197,8 @@ class _RenderRangeSlider extends RenderBox with RelayoutWhenSystemFontsChangeMix
 
   @override
   void dispose() {
+    _drag.dispose();
+    _tap.dispose();
     _startLabelPainter.dispose();
     _endLabelPainter.dispose();
     super.dispose();
@@ -1224,6 +1231,10 @@ class _RenderRangeSlider extends RenderBox with RelayoutWhenSystemFontsChangeMix
   }
 
   void _startInteraction(Offset globalPosition) {
+    if (_active) {
+      return;
+    }
+
     _state.showValueIndicator();
     final double tapValue = clampDouble(_getValueFromGlobalPosition(globalPosition), 0.0, 1.0);
     _lastThumbSelection = sliderTheme.thumbSelector!(textDirection, values, tapValue, _thumbSize, size, 0);
@@ -1333,10 +1344,6 @@ class _RenderRangeSlider extends RenderBox with RelayoutWhenSystemFontsChangeMix
   }
 
   void _handleTapUp(TapUpDetails details) {
-    _endInteraction();
-  }
-
-  void _handleTapCancel() {
     _endInteraction();
   }
 
@@ -1625,10 +1632,10 @@ class _RenderRangeSlider extends RenderBox with RelayoutWhenSystemFontsChangeMix
   }
 
   /// Describe the semantics of the start thumb.
-  SemanticsNode? _startSemanticsNode = SemanticsNode();
+  SemanticsNode? _startSemanticsNode;
 
   /// Describe the semantics of the end thumb.
-  SemanticsNode? _endSemanticsNode = SemanticsNode();
+  SemanticsNode? _endSemanticsNode;
 
   // Create the semantics configuration for a single value.
   SemanticsConfiguration _createSemanticsConfiguration(
@@ -1694,6 +1701,10 @@ class _RenderRangeSlider extends RenderBox with RelayoutWhenSystemFontsChangeMix
       width: kMinInteractiveDimension,
       height: kMinInteractiveDimension,
     );
+
+    _startSemanticsNode ??= SemanticsNode();
+    _endSemanticsNode ??= SemanticsNode();
+
     switch (textDirection) {
       case TextDirection.ltr:
         _startSemanticsNode!.rect = leftRect;

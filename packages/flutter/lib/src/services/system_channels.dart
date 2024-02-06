@@ -133,11 +133,23 @@ abstract final class SystemChannels {
   ///  * `System.requestAppExit`: The application has requested that it be
   ///    terminated. See [ServicesBinding.exitApplication].
   ///
+  ///  * `System.initializationComplete`: Indicate to the engine the
+  ///    initialization of a binding that may, among other tasks, register a
+  ///    handler for application exit attempts.
+  ///
   /// Calls to methods that are not implemented on the shell side are ignored
   /// (so it is safe to call methods when the relevant plugin might be missing).
   static const MethodChannel platform = OptionalMethodChannel(
       'flutter/platform',
       JSONMethodCodec(),
+  );
+
+  /// A [MethodChannel] for handling text processing actions.
+  ///
+  /// This channel exposes the text processing feature for supported platforms.
+  /// Currently supported on Android only.
+  static const MethodChannel processText = OptionalMethodChannel(
+      'flutter/processtext',
   );
 
   /// A JSON [MethodChannel] for handling text input.
@@ -498,6 +510,10 @@ abstract final class SystemChannels {
   ///    The keyboard state is sent as a `Map<int, int>?` where each entry
   ///    represents a pressed keyboard key. The entry key is the physical
   ///    key ID and the entry value is the logical key ID.
+  ///
+  ///    Both the framework and the engine maintain a state of the current
+  ///    pressed keys. There are edge cases, related to startup and restart,
+  ///    where the framework needs to resynchronize its keyboard state.
   ///
   /// See also:
   ///

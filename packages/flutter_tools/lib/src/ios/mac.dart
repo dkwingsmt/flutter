@@ -4,7 +4,9 @@
 
 import 'dart:async';
 
+import 'package:meta/meta.dart';
 import 'package:process/process.dart';
+import 'package:unified_analytics/unified_analytics.dart';
 
 import '../artifacts.dart';
 import '../base/file_system.dart';
@@ -38,6 +40,24 @@ import 'xcode_build_settings.dart';
 import 'xcodeproj.dart';
 import 'xcresult.dart';
 
+const String kConcurrentRunFailureMessage1 = 'database is locked';
+const String kConcurrentRunFailureMessage2 = 'there are two concurrent builds running';
+
+/// User message when missing platform required to use Xcode.
+///
+/// Starting with Xcode 15, the simulator is no longer downloaded with Xcode
+/// and must be downloaded and installed separately.
+@visibleForTesting
+String missingPlatformInstructions(String simulatorVersion) => '''
+════════════════════════════════════════════════════════════════════════════════
+$simulatorVersion is not installed. To download and install the platform, open
+Xcode, select Xcode > Settings > Platforms, and click the GET button for the
+required platform.
+
+For more information, please visit:
+  https://developer.apple.com/documentation/xcode/installing-additional-simulator-runtimes
+════════════════════════════════════════════════════════════════════════════════''';
+
 class IMobileDevice {
   IMobileDevice({
     required Artifacts artifacts,
@@ -53,6 +73,7 @@ class IMobileDevice {
   /// Create an [IMobileDevice] for testing.
   factory IMobileDevice.test({ required ProcessManager processManager }) {
     return IMobileDevice(
+      // ignore: invalid_use_of_visible_for_testing_member
       artifacts: Artifacts.test(),
       cache: Cache.test(processManager: processManager),
       processManager: processManager,
@@ -69,12 +90,17 @@ class IMobileDevice {
   late final bool isInstalled = _processManager.canRun(_idevicescreenshotPath);
 
   /// Starts `idevicesyslog` and returns the running process.
-  Future<Process> startLogger(String deviceID) {
+  Future<Process> startLogger(
+    String deviceID,
+    bool isWirelesslyConnected,
+  ) {
     return _processUtils.start(
       <String>[
         _idevicesyslogPath,
         '-u',
         deviceID,
+        if (isWirelesslyConnected)
+          '--network',
       ],
       environment: Map<String, String>.fromEntries(
         <MapEntry<String, String>>[_dyLdLibEntry]
@@ -115,13 +141,14 @@ Future<XcodeBuildResult> buildXcodeProject({
   String? deviceID,
   bool configOnly = false,
   XcodeBuildAction buildAction = XcodeBuildAction.build,
+  bool disablePortPublication = false,
 }) async {
   if (!upgradePbxProjWithFlutterAssets(app.project, globals.logger)) {
     return XcodeBuildResult(success: false);
   }
 
   final List<ProjectMigrator> migrators = <ProjectMigrator>[
-    RemoveFrameworkLinkAndEmbeddingMigration(app.project, globals.logger, globals.flutterUsage),
+    RemoveFrameworkLinkAndEmbeddingMigration(app.project, globals.logger, globals.flutterUsage, globals.analytics),
     XcodeBuildSystemMigration(app.project, globals.logger),
     ProjectBaseConfigurationMigration(app.project, globals.logger),
     ProjectBuildLocationMigration(app.project, globals.logger),
@@ -354,12 +381,19 @@ Future<XcodeBuildResult> buildXcodeProject({
       buildCommands.add('SCRIPT_OUTPUT_STREAM_FILE=${scriptOutputPipeFile.absolute.path}');
     }
 
+    final Directory resultBundleDirectory = tempDir.childDirectory(_kResultBundlePath);
     buildCommands.addAll(<String>[
       '-resultBundlePath',
-      tempDir.childFile(_kResultBundlePath).absolute.path,
+      resultBundleDirectory.absolute.path,
       '-resultBundleVersion',
       _kResultBundleVersion,
     ]);
+
+    // Adds a setting which xcode_backend.dart will use to skip adding Bonjour
+    // service settings to the Info.plist.
+    if (disablePortPublication) {
+      buildCommands.add('DISABLE_PORT_PUBLICATION=YES');
+    }
 
     // Don't log analytics for downstream Flutter commands.
     // e.g. `flutter build bundle`.
@@ -378,7 +412,7 @@ Future<XcodeBuildResult> buildXcodeProject({
     final Stopwatch sw = Stopwatch()..start();
     initialBuildStatus = globals.logger.startProgress('Running Xcode build...');
 
-    buildResult = await _runBuildWithRetries(buildCommands, app);
+    buildResult = await _runBuildWithRetries(buildCommands, app, resultBundleDirectory);
 
     // Notifies listener that no more output is coming.
     scriptOutputPipeFile?.writeAsStringSync('all done');
@@ -390,7 +424,13 @@ Future<XcodeBuildResult> buildXcodeProject({
       'Xcode ${xcodeBuildActionToString(buildAction)} done.'.padRight(kDefaultStatusPadding + 1)
           + getElapsedAsSeconds(sw.elapsed).padLeft(5),
     );
-    globals.flutterUsage.sendTiming(xcodeBuildActionToString(buildAction), 'xcode-ios', Duration(milliseconds: sw.elapsedMilliseconds));
+    final Duration elapsedDuration = sw.elapsed;
+    globals.flutterUsage.sendTiming(xcodeBuildActionToString(buildAction), 'xcode-ios', elapsedDuration);
+    globals.analytics.send(Event.timing(
+      workflow: xcodeBuildActionToString(buildAction),
+      variableName: 'xcode-ios',
+      elapsedMilliseconds: elapsedDuration.inMilliseconds,
+    ));
 
     if (tempDir.existsSync()) {
       // Display additional warning and error message from xcresult bundle.
@@ -508,12 +548,15 @@ Future<void> removeFinderExtendedAttributes(FileSystemEntity projectDirectory, P
   }
 }
 
-Future<RunResult?> _runBuildWithRetries(List<String> buildCommands, BuildableIOSApp app) async {
+Future<RunResult?> _runBuildWithRetries(List<String> buildCommands, BuildableIOSApp app, Directory resultBundleDirectory) async {
   int buildRetryDelaySeconds = 1;
   int remainingTries = 8;
 
   RunResult? buildResult;
   while (remainingTries > 0) {
+    if (resultBundleDirectory.existsSync()) {
+      resultBundleDirectory.deleteSync(recursive: true);
+    }
     remainingTries--;
     buildRetryDelaySeconds *= 2;
 
@@ -546,21 +589,39 @@ Future<RunResult?> _runBuildWithRetries(List<String> buildCommands, BuildableIOS
 
 bool _isXcodeConcurrentBuildFailure(RunResult result) {
 return result.exitCode != 0 &&
-    result.stdout.contains('database is locked') &&
-    result.stdout.contains('there are two concurrent builds running');
+    result.stdout.contains(kConcurrentRunFailureMessage1) &&
+    result.stdout.contains(kConcurrentRunFailureMessage2);
 }
 
-Future<void> diagnoseXcodeBuildFailure(XcodeBuildResult result, Usage flutterUsage, Logger logger) async {
+Future<void> diagnoseXcodeBuildFailure(
+  XcodeBuildResult result,
+  Usage flutterUsage,
+  Logger logger,
+  Analytics analytics,
+) async {
   final XcodeBuildExecution? xcodeBuildExecution = result.xcodeBuildExecution;
   if (xcodeBuildExecution != null
       && xcodeBuildExecution.environmentType == EnvironmentType.physical
       && (result.stdout?.toUpperCase().contains('BITCODE') ?? false)) {
-    BuildEvent('xcode-bitcode-failure',
-      type: 'ios',
-      command: xcodeBuildExecution.buildCommands.toString(),
-      settings: xcodeBuildExecution.buildSettings.toString(),
+
+    const String label = 'xcode-bitcode-failure';
+    const String buildType = 'ios';
+    final String command = xcodeBuildExecution.buildCommands.toString();
+    final String settings = xcodeBuildExecution.buildSettings.toString();
+
+    BuildEvent(
+      label,
+      type: buildType,
+      command: command,
+      settings: settings,
       flutterUsage: flutterUsage,
     ).send();
+    analytics.send(Event.flutterBuildInfo(
+      label: label,
+      buildType: buildType,
+      command: command,
+      settings: settings,
+    ));
   }
 
   // Handle errors.
@@ -693,6 +754,11 @@ _XCResultIssueHandlingResult _handleXCResultIssue({required XCResultIssue issue,
     return _XCResultIssueHandlingResult(requiresProvisioningProfile: true, hasProvisioningProfileIssue: true);
   } else if (message.toLowerCase().contains('provisioning profile')) {
     return _XCResultIssueHandlingResult(requiresProvisioningProfile: false, hasProvisioningProfileIssue: true);
+  } else if (message.toLowerCase().contains('ineligible destinations')) {
+    final String? missingPlatform = _parseMissingPlatform(message);
+    if (missingPlatform != null) {
+      return _XCResultIssueHandlingResult(requiresProvisioningProfile: false, hasProvisioningProfileIssue: false, missingPlatform: missingPlatform);
+    }
   }
   return _XCResultIssueHandlingResult(requiresProvisioningProfile: false, hasProvisioningProfileIssue: false);
 }
@@ -702,6 +768,7 @@ bool _handleIssues(XCResult? xcResult, Logger logger, XcodeBuildExecution? xcode
   bool requiresProvisioningProfile = false;
   bool hasProvisioningProfileIssue = false;
   bool issueDetected = false;
+  String? missingPlatform;
 
   if (xcResult != null && xcResult.parseSuccess) {
     for (final XCResultIssue issue in xcResult.issues) {
@@ -712,6 +779,7 @@ bool _handleIssues(XCResult? xcResult, Logger logger, XcodeBuildExecution? xcode
       if (handlingResult.requiresProvisioningProfile) {
         requiresProvisioningProfile = true;
       }
+      missingPlatform = handlingResult.missingPlatform;
       issueDetected = true;
     }
   } else if (xcResult != null) {
@@ -731,6 +799,8 @@ bool _handleIssues(XCResult? xcResult, Logger logger, XcodeBuildExecution? xcode
     logger.printError('  open ios/Runner.xcworkspace');
     logger.printError('');
     logger.printError("Also try selecting 'Product > Build' to fix the problem.");
+  } else if (missingPlatform != null) {
+    logger.printError(missingPlatformInstructions(missingPlatform), emphasis: true);
   }
 
   return issueDetected;
@@ -766,18 +836,41 @@ void _parseIssueInStdout(XcodeBuildExecution xcodeBuildExecution, Logger logger,
       && (result.stdout?.contains('requires a provisioning profile. Select a provisioning profile in the Signing & Capabilities editor') ?? false)) {
     logger.printError(noProvisioningProfileInstruction, emphasis: true);
   }
+
+  if (stderr != null && stderr.contains('Ineligible destinations')) {
+    final String? version = _parseMissingPlatform(stderr);
+      if (version != null) {
+        logger.printError(missingPlatformInstructions(version), emphasis: true);
+      }
+  }
+}
+
+String? _parseMissingPlatform(String message) {
+  final RegExp pattern = RegExp(r'error:(.*?) is not installed\. To use with Xcode, first download and install the platform');
+  final RegExpMatch? match = pattern.firstMatch(message);
+  if (match != null) {
+    final String? version = match.group(1);
+    return version;
+  }
+  return null;
 }
 
 // The result of [_handleXCResultIssue].
 class _XCResultIssueHandlingResult {
 
-  _XCResultIssueHandlingResult({required this.requiresProvisioningProfile, required this.hasProvisioningProfileIssue});
+  _XCResultIssueHandlingResult({
+    required this.requiresProvisioningProfile,
+    required this.hasProvisioningProfileIssue,
+    this.missingPlatform,
+  });
 
   // An issue indicates that user didn't provide the provisioning profile.
   final bool requiresProvisioningProfile;
 
   // An issue indicates that there is a provisioning profile issue.
   final bool hasProvisioningProfileIssue;
+
+  final String? missingPlatform;
 }
 
 const String _kResultBundlePath = 'temporary_xcresult_bundle';

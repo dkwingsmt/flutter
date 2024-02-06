@@ -19,16 +19,15 @@ import '../image_data.dart';
 ByteData testByteData(double scale) => ByteData(8)..setFloat64(0, scale);
 double scaleOf(ByteData data) => data.getFloat64(0);
 
-final Map<Object?, Object?> testManifest = json.decode('''
-{
-  "assets/image.png" : [
-    {"asset": "assets/1.5x/image.png", "dpr": 1.5},
-    {"asset": "assets/2.0x/image.png", "dpr": 2.0},
-    {"asset": "assets/3.0x/image.png", "dpr": 3.0},
-    {"asset": "assets/4.0x/image.png", "dpr": 4.0}
-  ]
-}
-''') as Map<Object?, Object?>;
+final Map<Object?, Object?> testManifest = <Object?, Object?>{
+  'assets/image.png' : <Map<String, Object>>[
+    <String, String>{'asset': 'assets/image.png'},
+    <String, Object>{'asset': 'assets/1.5x/image.png', 'dpr': 1.5},
+    <String, Object>{'asset': 'assets/2.0x/image.png', 'dpr': 2.0},
+    <String, Object>{'asset': 'assets/3.0x/image.png', 'dpr': 3.0},
+    <String, Object>{'asset': 'assets/4.0x/image.png', 'dpr': 4.0}
+  ],
+};
 
 class TestAssetBundle extends CachingAssetBundle {
   TestAssetBundle({ required Map<Object?, Object?> manifest }) {
@@ -70,7 +69,7 @@ class FakeImageStreamCompleter extends ImageStreamCompleter {
 }
 
 class TestAssetImage extends AssetImage {
-  const TestAssetImage(super.name, this.images);
+  const TestAssetImage(super.assetName, this.images);
 
   final Map<double, ui.Image> images;
 
@@ -147,19 +146,24 @@ RenderImage getRenderImage(WidgetTester tester, Key key) {
 }
 
 Future<void> pumpTreeToLayout(WidgetTester tester, Widget widget) {
-  const Duration pumpDuration = Duration.zero;
-  const EnginePhase pumpPhase = EnginePhase.layout;
-  return tester.pumpWidget(widget, pumpDuration, pumpPhase);
+  return tester.pumpWidget(widget, duration: Duration.zero, phase: EnginePhase.layout);
 }
 
 void main() {
   const String image = 'assets/image.png';
 
   final Map<double, ui.Image> images = <double, ui.Image>{};
+
   setUpAll(() async {
     for (final double scale in const <double>[0.5, 1.0, 1.5, 2.0, 4.0, 10.0]) {
       final int dimension = (48 * scale).floor();
       images[scale] = await createTestImage(width: dimension, height: dimension);
+    }
+  });
+
+  tearDownAll(() {
+    for (final ui.Image image in images.values) {
+      image.dispose();
     }
   });
 
@@ -303,13 +307,12 @@ void main() {
   // if higher resolution assets are not available we will pick the best
   // available.
   testWidgets('Low-resolution assets', (WidgetTester tester) async {
-    final Map<Object?, Object?> manifest = json.decode('''
-      {
-        "assets/image.png" : [
-          {"asset": "assets/1.5x/image.png", "dpr": 1.5}
-        ]
-      }
-    ''') as Map<Object?, Object?>;
+    const Map<Object?, Object?> manifest = <Object?, Object?>{
+      'assets/image.png': <Map<String, Object>>[
+        <String, Object>{'asset': 'assets/image.png'},
+        <String, Object>{'asset': 'assets/1.5x/image.png', 'dpr': 1.5},
+      ],
+    };
     final AssetBundle bundle = TestAssetBundle(manifest: manifest);
 
     Future<void> testRatio({required double ratio, required double expectedScale}) async {

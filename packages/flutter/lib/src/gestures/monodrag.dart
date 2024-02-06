@@ -70,13 +70,13 @@ typedef GestureVelocityTrackerBuilder = VelocityTracker Function(PointerEvent ev
 abstract class DragGestureRecognizer extends OneSequenceGestureRecognizer {
   /// Initialize the object.
   ///
-  /// [dragStartBehavior] must not be null.
-  ///
   /// {@macro flutter.gestures.GestureRecognizer.supportedDevices}
   DragGestureRecognizer({
     super.debugOwner,
     this.dragStartBehavior = DragStartBehavior.start,
+    this.multitouchDragStrategy = MultitouchDragStrategy.latestPointer,
     this.velocityTrackerBuilder = _defaultBuilder,
+    this.onlyAcceptDragOnThreshold = false,
     super.supportedDevices,
     AllowedButtonsFilter? allowedButtonsFilter,
   }) : super(allowedButtonsFilter: allowedButtonsFilter ?? _defaultButtonAcceptBehavior);
@@ -111,6 +111,26 @@ abstract class DragGestureRecognizer extends OneSequenceGestureRecognizer {
   /// instead set to [DragStartBehavior.start], [onStart] will be called with
   /// position (510.0, 500.0).
   DragStartBehavior dragStartBehavior;
+
+  /// {@template flutter.gestures.monodrag.DragGestureRecognizer.multitouchDragStrategy}
+  /// Configure the multi-finger drag strategy on multi-touch devices.
+  ///
+  /// If set to [MultitouchDragStrategy.latestPointer], the drag gesture recognizer
+  /// will only track the latest active (accepted by this recognizer) pointer, which
+  /// appears to be only one finger dragging.
+  ///
+  /// If set to [MultitouchDragStrategy.sumAllPointers],
+  /// all active pointers will be tracked together and the scrolling offset
+  /// is the sum of the offsets of all active pointers
+  /// {@endtemplate}
+  ///
+  /// By default, the strategy is [MultitouchDragStrategy.latestPointer].
+  ///
+  /// See also:
+  ///
+  ///  * [MultitouchDragStrategy], which defines two different drag strategies for
+  ///  multi-finger drag.
+  MultitouchDragStrategy multitouchDragStrategy;
 
   /// A pointer has contacted the screen with a primary button and might begin
   /// to move.
@@ -210,6 +230,25 @@ abstract class DragGestureRecognizer extends OneSequenceGestureRecognizer {
   /// If null then [kMaxFlingVelocity] is used.
   double? maxFlingVelocity;
 
+  /// Whether the drag threshold should be met before dispatching any drag callbacks.
+  ///
+  /// The drag threshold is met when the global distance traveled by a pointer has
+  /// exceeded the defined threshold on the relevant axis, i.e. y-axis for the
+  /// [VerticalDragGestureRecognizer], x-axis for the [HorizontalDragGestureRecognizer],
+  /// and the entire plane for [PanGestureRecognizer]. The threshold for both
+  /// [VerticalDragGestureRecognizer] and [HorizontalDragGestureRecognizer] are
+  /// calculated by [computeHitSlop], while [computePanSlop] is used for
+  /// [PanGestureRecognizer].
+  ///
+  /// If true, the drag callbacks will only be dispatched when this recognizer has
+  /// won the arena and the drag threshold has been met.
+  ///
+  /// If false, the drag callbacks will be dispatched immediately when this recognizer
+  /// has won the arena.
+  ///
+  /// This value defaults to false.
+  bool onlyAcceptDragOnThreshold;
+
   /// Determines the type of velocity estimation method to use for a potential
   /// drag gesture, when a new pointer is added.
   ///
@@ -284,6 +323,7 @@ abstract class DragGestureRecognizer extends OneSequenceGestureRecognizer {
   Offset _getDeltaForDetails(Offset delta);
   double? _getPrimaryValueFromOffset(Offset value);
   bool _hasSufficientGlobalDistanceToAccept(PointerDeviceKind pointerDeviceKind, double? deviceTouchSlop);
+  bool _hasDragThresholdBeenMet = false;
 
   final Map<int, VelocityTracker> _velocityTrackers = <int, VelocityTracker>{};
 
@@ -340,6 +380,17 @@ abstract class DragGestureRecognizer extends OneSequenceGestureRecognizer {
     _addPointer(event);
   }
 
+  bool _shouldTrackMoveEvent(int pointer) {
+    final bool result;
+    switch (multitouchDragStrategy) {
+      case MultitouchDragStrategy.sumAllPointers:
+        result = true;
+      case MultitouchDragStrategy.latestPointer:
+        result = _acceptedActivePointers.length <= 1 || pointer == _acceptedActivePointers.last;
+    }
+    return result;
+  }
+
   @override
   void handleEvent(PointerEvent event) {
     assert(_state != _DragState.ready);
@@ -361,7 +412,8 @@ abstract class DragGestureRecognizer extends OneSequenceGestureRecognizer {
       _giveUpPointer(event.pointer);
       return;
     }
-    if (event is PointerMoveEvent || event is PointerPanZoomUpdateEvent) {
+    if ((event is PointerMoveEvent || event is PointerPanZoomUpdateEvent)
+        && _shouldTrackMoveEvent(event.pointer)) {
       final Offset delta = (event is PointerMoveEvent) ? event.delta : (event as PointerPanZoomUpdateEvent).panDelta;
       final Offset localDelta = (event is PointerMoveEvent) ? event.localDelta : (event as PointerPanZoomUpdateEvent).localPanDelta;
       final Offset position = (event is PointerMoveEvent) ? event.position : (event.position + (event as PointerPanZoomUpdateEvent).pan);
@@ -386,7 +438,12 @@ abstract class DragGestureRecognizer extends OneSequenceGestureRecognizer {
           untransformedEndPosition: localPosition
         ).distance * (_getPrimaryValueFromOffset(movedLocally) ?? 1).sign;
         if (_hasSufficientGlobalDistanceToAccept(event.kind, gestureSettings?.touchSlop)) {
-          resolve(GestureDisposition.accepted);
+          _hasDragThresholdBeenMet = true;
+          if (_acceptedActivePointers.contains(event.pointer)) {
+            _checkDrag(event.pointer);
+          } else {
+            resolve(GestureDisposition.accepted);
+          }
         }
       }
     }
@@ -395,51 +452,14 @@ abstract class DragGestureRecognizer extends OneSequenceGestureRecognizer {
     }
   }
 
-  final Set<int> _acceptedActivePointers = <int>{};
+  final List<int> _acceptedActivePointers = <int>[];
 
   @override
   void acceptGesture(int pointer) {
     assert(!_acceptedActivePointers.contains(pointer));
     _acceptedActivePointers.add(pointer);
-    if (_state != _DragState.accepted) {
-      _state = _DragState.accepted;
-      final OffsetPair delta = _pendingDragOffset;
-      final Duration? timestamp = _lastPendingEventTimestamp;
-      final Matrix4? transform = _lastTransform;
-      final Offset localUpdateDelta;
-      switch (dragStartBehavior) {
-        case DragStartBehavior.start:
-          _initialPosition = _initialPosition + delta;
-          localUpdateDelta = Offset.zero;
-        case DragStartBehavior.down:
-          localUpdateDelta = _getDeltaForDetails(delta.local);
-      }
-      _pendingDragOffset = OffsetPair.zero;
-      _lastPendingEventTimestamp = null;
-      _lastTransform = null;
-      _checkStart(timestamp, pointer);
-      if (localUpdateDelta != Offset.zero && onUpdate != null) {
-        final Matrix4? localToGlobal = transform != null ? Matrix4.tryInvert(transform) : null;
-        final Offset correctedLocalPosition = _initialPosition.local + localUpdateDelta;
-        final Offset globalUpdateDelta = PointerEvent.transformDeltaViaPositions(
-          untransformedEndPosition: correctedLocalPosition,
-          untransformedDelta: localUpdateDelta,
-          transform: localToGlobal,
-        );
-        final OffsetPair updateDelta = OffsetPair(local: localUpdateDelta, global: globalUpdateDelta);
-        final OffsetPair correctedPosition = _initialPosition + updateDelta; // Only adds delta for down behaviour
-        _checkUpdate(
-          sourceTimeStamp: timestamp,
-          delta: localUpdateDelta,
-          primaryDelta: _getPrimaryValueFromOffset(localUpdateDelta),
-          globalPosition: correctedPosition.global,
-          localPosition: correctedPosition.local,
-        );
-      }
-      // This acceptGesture might have been called only for one pointer, instead
-      // of all pointers. Resolve all pointers to `accepted`. This won't cause
-      // infinite recursion because an accepted pointer won't be accepted again.
-      resolve(GestureDisposition.accepted);
+    if (!onlyAcceptDragOnThreshold || _hasDragThresholdBeenMet) {
+      _checkDrag(pointer);
     }
   }
 
@@ -451,7 +471,7 @@ abstract class DragGestureRecognizer extends OneSequenceGestureRecognizer {
   @override
   void didStopTrackingLastPointer(int pointer) {
     assert(_state != _DragState.ready);
-    switch(_state) {
+    switch (_state) {
       case _DragState.ready:
         break;
 
@@ -462,6 +482,7 @@ abstract class DragGestureRecognizer extends OneSequenceGestureRecognizer {
       case _DragState.accepted:
         _checkEnd(pointer);
     }
+    _hasDragThresholdBeenMet = false;
     _velocityTrackers.clear();
     _initialButtons = null;
     _state = _DragState.ready;
@@ -484,6 +505,50 @@ abstract class DragGestureRecognizer extends OneSequenceGestureRecognizer {
       );
       invokeCallback<void>('onDown', () => onDown!(details));
     }
+  }
+
+  void _checkDrag(int pointer) {
+    if (_state == _DragState.accepted) {
+      return;
+    }
+    _state = _DragState.accepted;
+    final OffsetPair delta = _pendingDragOffset;
+    final Duration? timestamp = _lastPendingEventTimestamp;
+    final Matrix4? transform = _lastTransform;
+    final Offset localUpdateDelta;
+    switch (dragStartBehavior) {
+      case DragStartBehavior.start:
+        _initialPosition = _initialPosition + delta;
+        localUpdateDelta = Offset.zero;
+      case DragStartBehavior.down:
+        localUpdateDelta = _getDeltaForDetails(delta.local);
+    }
+    _pendingDragOffset = OffsetPair.zero;
+    _lastPendingEventTimestamp = null;
+    _lastTransform = null;
+    _checkStart(timestamp, pointer);
+    if (localUpdateDelta != Offset.zero && onUpdate != null) {
+      final Matrix4? localToGlobal = transform != null ? Matrix4.tryInvert(transform) : null;
+      final Offset correctedLocalPosition = _initialPosition.local + localUpdateDelta;
+      final Offset globalUpdateDelta = PointerEvent.transformDeltaViaPositions(
+        untransformedEndPosition: correctedLocalPosition,
+        untransformedDelta: localUpdateDelta,
+        transform: localToGlobal,
+      );
+      final OffsetPair updateDelta = OffsetPair(local: localUpdateDelta, global: globalUpdateDelta);
+      final OffsetPair correctedPosition = _initialPosition + updateDelta; // Only adds delta for down behaviour
+      _checkUpdate(
+        sourceTimeStamp: timestamp,
+        delta: localUpdateDelta,
+        primaryDelta: _getPrimaryValueFromOffset(localUpdateDelta),
+        globalPosition: correctedPosition.global,
+        localPosition: correctedPosition.local,
+      );
+    }
+    // This acceptGesture might have been called only for one pointer, instead
+    // of all pointers. Resolve all pointers to `accepted`. This won't cause
+    // infinite recursion because an accepted pointer won't be accepted again.
+    resolve(GestureDisposition.accepted);
   }
 
   void _checkStart(Duration? timestamp, int pointer) {

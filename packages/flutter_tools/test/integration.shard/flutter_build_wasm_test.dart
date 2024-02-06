@@ -46,12 +46,12 @@ void main() {
         flutterWebWasm.environmentOverride!: 'true'
       },
     );
-    expect(result.exitCode, 0);
+    expect(result, const ProcessResultMatcher());
 
     final Directory appBuildDir = fileSystem.directory(fileSystem.path.join(
       exampleAppDir.path,
       'build',
-      'web_wasm',
+      'web',
     ));
     for (final String filename in const <String>[
       'flutter.js',

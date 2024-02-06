@@ -11,6 +11,7 @@ import 'package:flutter/services.dart';
 import 'basic_types.dart';
 import 'inline_span.dart';
 import 'text_painter.dart';
+import 'text_scaler.dart';
 
 // Examples can assume:
 // late TextSpan myTextSpan;
@@ -267,13 +268,13 @@ class TextSpan extends InlineSpan implements HitTestTarget, MouseTrackerAnnotati
   @override
   void build(
     ui.ParagraphBuilder builder, {
-    double textScaleFactor = 1.0,
+    TextScaler textScaler = TextScaler.noScaling,
     List<PlaceholderDimensions>? dimensions,
   }) {
     assert(debugAssertIsValid());
     final bool hasStyle = style != null;
     if (hasStyle) {
-      builder.pushStyle(style!.getTextStyle(textScaleFactor: textScaleFactor));
+      builder.pushStyle(style!.getTextStyle(textScaler: textScaler));
     }
     if (text != null) {
       try {
@@ -284,17 +285,21 @@ class TextSpan extends InlineSpan implements HitTestTarget, MouseTrackerAnnotati
           stack: stack,
           library: 'painting library',
           context: ErrorDescription('while building a TextSpan'),
+          silent: true,
         ));
         // Use a Unicode replacement character as a substitute for invalid text.
         builder.addText('\uFFFD');
       }
     }
-    for (final InlineSpan child in children ?? const <InlineSpan>[]) {
-      child.build(
-        builder,
-        textScaleFactor: textScaleFactor,
-        dimensions: dimensions,
-      );
+    final List<InlineSpan>? children = this.children;
+    if (children != null) {
+      for (final InlineSpan child in children) {
+        child.build(
+          builder,
+          textScaler: textScaler,
+          dimensions: dimensions,
+        );
+      }
     }
     if (hasStyle) {
       builder.pop();
@@ -311,9 +316,12 @@ class TextSpan extends InlineSpan implements HitTestTarget, MouseTrackerAnnotati
     if (text != null && !visitor(this)) {
       return false;
     }
-    for (final InlineSpan child in children ?? const <InlineSpan>[]) {
-      if (!child.visitChildren(visitor)) {
-        return false;
+    final List<InlineSpan>? children = this.children;
+    if (children != null) {
+      for (final InlineSpan child in children) {
+        if (!child.visitChildren(visitor)) {
+          return false;
+        }
       }
     }
     return true;
@@ -321,9 +329,12 @@ class TextSpan extends InlineSpan implements HitTestTarget, MouseTrackerAnnotati
 
   @override
   bool visitDirectChildren(InlineSpanVisitor visitor) {
-    for (final InlineSpan child in children ?? const <InlineSpan>[]) {
-      if (!visitor(child)) {
-        return false;
+    final List<InlineSpan>? children = this.children;
+    if (children != null) {
+      for (final InlineSpan child in children) {
+        if (!visitor(child)) {
+          return false;
+        }
       }
     }
     return true;
@@ -332,18 +343,20 @@ class TextSpan extends InlineSpan implements HitTestTarget, MouseTrackerAnnotati
   /// Returns the text span that contains the given position in the text.
   @override
   InlineSpan? getSpanForPositionVisitor(TextPosition position, Accumulator offset) {
-    if (text == null) {
+    final String? text = this.text;
+    if (text == null || text.isEmpty) {
       return null;
     }
     final TextAffinity affinity = position.affinity;
     final int targetOffset = position.offset;
-    final int endOffset = offset.value + text!.length;
+    final int endOffset = offset.value + text.length;
+
     if (offset.value == targetOffset && affinity == TextAffinity.downstream ||
         offset.value < targetOffset && targetOffset < endOffset ||
         endOffset == targetOffset && affinity == TextAffinity.upstream) {
       return this;
     }
-    offset.increment(text!.length);
+    offset.increment(text.length);
     return null;
   }
 
@@ -393,15 +406,18 @@ class TextSpan extends InlineSpan implements HitTestTarget, MouseTrackerAnnotati
         recognizer: recognizer,
       ));
     }
-    for (final InlineSpan child in children ?? const <InlineSpan>[]) {
-      if (child is TextSpan) {
-        child.computeSemanticsInformation(
-          collector,
-          inheritedLocale: effectiveLocale,
-          inheritedSpellOut: effectiveSpellOut,
-        );
-      } else {
-        child.computeSemanticsInformation(collector);
+    final List<InlineSpan>? children = this.children;
+    if (children != null) {
+      for (final InlineSpan child in children) {
+        if (child is TextSpan) {
+          child.computeSemanticsInformation(
+            collector,
+            inheritedLocale: effectiveLocale,
+            inheritedSpellOut: effectiveSpellOut,
+          );
+        } else {
+          child.computeSemanticsInformation(collector);
+        }
       }
     }
   }
@@ -416,25 +432,6 @@ class TextSpan extends InlineSpan implements HitTestTarget, MouseTrackerAnnotati
     assert(localOffset >= 0);
     offset.increment(text.length);
     return localOffset < text.length ? text.codeUnitAt(localOffset) : null;
-  }
-
-  /// Populates the `semanticsOffsets` and `semanticsElements` with the appropriate data
-  /// to be able to construct a [SemanticsNode].
-  ///
-  /// If applicable, the beginning and end text offset are added to [semanticsOffsets].
-  /// [PlaceholderSpan]s have a text length of 1, which corresponds to the object
-  /// replacement character (0xFFFC) that is inserted to represent it.
-  ///
-  /// Any [GestureRecognizer]s are added to `semanticsElements`. Null is added to
-  /// `semanticsElements` for [PlaceholderSpan]s.
-  void describeSemantics(Accumulator offset, List<int> semanticsOffsets, List<dynamic> semanticsElements) {
-    if (recognizer is TapGestureRecognizer || recognizer is LongPressGestureRecognizer) {
-      final int length = semanticsLabel?.length ?? text!.length;
-      semanticsOffsets.add(offset.value);
-      semanticsOffsets.add(offset.value + length);
-      semanticsElements.add(recognizer);
-    }
-    offset.increment(text != null ? text!.length : 0);
   }
 
   /// In debug mode, throws an exception if the object is not in a valid

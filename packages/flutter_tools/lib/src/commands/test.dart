@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 import 'package:meta/meta.dart';
+import 'package:package_config/package_config_types.dart';
 
 import '../asset.dart';
 import '../base/common.dart';
@@ -66,12 +67,14 @@ class TestCommand extends FlutterCommand with DeviceBasedDevelopmentArtifacts {
     requiresPubspecYaml();
     usesPubOption();
     addNullSafetyModeOptions(hide: !verboseHelp);
+    usesFrontendServerStarterPathOption(verboseHelp: verboseHelp);
     usesTrackWidgetCreation(verboseHelp: verboseHelp);
     addEnableExperimentation(hide: !verboseHelp);
     usesDartDefineOption();
     usesWebRendererOption();
     usesDeviceUserOption();
     usesFlavorOption();
+    addEnableImpellerFlag(verboseHelp: verboseHelp);
 
     argParser
       ..addMultiOption('name',
@@ -130,6 +133,13 @@ class TestCommand extends FlutterCommand with DeviceBasedDevelopmentArtifacts {
       ..addOption('coverage-path',
         defaultsTo: 'coverage/lcov.info',
         help: 'Where to store coverage information (if coverage is enabled).',
+      )
+      ..addMultiOption('coverage-package',
+        help: 'A regular expression matching packages names '
+              'to include in the coverage report (if coverage is enabled). '
+              'If unset, matches the current package name.',
+        valueHelp: 'package-name-regexp',
+        splitCommas: false,
       )
       ..addFlag('machine',
         hide: !verboseHelp,
@@ -335,19 +345,33 @@ class TestCommand extends FlutterCommand with DeviceBasedDevelopmentArtifacts {
       );
     }
 
-    String? testAssetDirectory;
-    if (buildTestAssets) {
-      await _buildTestAsset();
-      testAssetDirectory = globals.fs.path.
-        join(flutterProject.directory.path, 'build', 'unit_test_assets');
-    }
-
     final bool startPaused = boolArg('start-paused');
     if (startPaused && _testFileUris.length != 1) {
       throwToolExit(
         'When using --start-paused, you must specify a single test file to run.',
         exitCode: 1,
       );
+    }
+
+    final DebuggingOptions debuggingOptions = DebuggingOptions.enabled(
+      buildInfo,
+      startPaused: startPaused,
+      disableServiceAuthCodes: boolArg('disable-service-auth-codes'),
+      serveObservatory: boolArg('serve-observatory'),
+      // On iOS >=14, keeping this enabled will leave a prompt on the screen.
+      disablePortPublication: true,
+      enableDds: enableDds,
+      nullAssertions: boolArg(FlutterOptions.kNullAssertions),
+      usingCISystem: usingCISystem,
+      enableImpeller: ImpellerStatus.fromBool(argResults!['enable-impeller'] as bool?),
+      debugLogsDirectoryPath: debugLogsDirectoryPath,
+    );
+
+    String? testAssetDirectory;
+    if (buildTestAssets) {
+      await _buildTestAsset(flavor: buildInfo.flavor, impellerStatus: debuggingOptions.enableImpeller);
+      testAssetDirectory = globals.fs.path.
+        join(flutterProject.directory.path, 'build', 'unit_test_assets');
     }
 
     final String? concurrencyString = stringArg('concurrency');
@@ -395,10 +419,14 @@ class TestCommand extends FlutterCommand with DeviceBasedDevelopmentArtifacts {
     CoverageCollector? collector;
     if (boolArg('coverage') || boolArg('merge-coverage') ||
         boolArg('branch-coverage')) {
-      final String projectName = flutterProject.manifest.appName;
+      final Set<String> packagesToInclude = _getCoveragePackages(
+        stringsArg('coverage-package'),
+        flutterProject,
+        buildInfo.packageConfig,
+      );
       collector = CoverageCollector(
         verbose: !machine,
-        libraryNames: <String>{projectName},
+        libraryNames: packagesToInclude,
         packagesPath: buildInfo.packagesPath,
         resolver: await CoverageCollector.getResolver(buildInfo.packagesPath),
         testTimeRecorder: testTimeRecorder,
@@ -412,17 +440,6 @@ class TestCommand extends FlutterCommand with DeviceBasedDevelopmentArtifacts {
     } else if (collector != null) {
       watcher = collector;
     }
-
-    final DebuggingOptions debuggingOptions = DebuggingOptions.enabled(
-      buildInfo,
-      startPaused: startPaused,
-      disableServiceAuthCodes: boolArg('disable-service-auth-codes'),
-      serveObservatory: boolArg('serve-observatory'),
-      // On iOS >=14, keeping this enabled will leave a prompt on the screen.
-      disablePortPublication: true,
-      enableDds: enableDds,
-      nullAssertions: boolArg(FlutterOptions.kNullAssertions),
-    );
 
     Device? integrationTestDevice;
     if (_isIntegrationTest) {
@@ -452,6 +469,10 @@ class TestCommand extends FlutterCommand with DeviceBasedDevelopmentArtifacts {
           '  integration_test:\n'
           '    sdk: flutter\n',
         );
+      }
+
+      if (stringArg('flavor') != null && !integrationTestDevice.supportsFlavors) {
+        throwToolExit('--flavor is only supported for Android, macOS, and iOS devices.');
       }
     }
 
@@ -507,6 +528,30 @@ class TestCommand extends FlutterCommand with DeviceBasedDevelopmentArtifacts {
     return FlutterCommandResult.success();
   }
 
+  Set<String> _getCoveragePackages(
+    List<String> packagesRegExps,
+    FlutterProject flutterProject,
+    PackageConfig packageConfig,
+  ) {
+    final String projectName = flutterProject.manifest.appName;
+    final Set<String> packagesToInclude = <String>{
+      if (packagesRegExps.isEmpty) projectName,
+    };
+    try {
+      for (final String regExpStr in packagesRegExps) {
+        final RegExp regExp = RegExp(regExpStr);
+        packagesToInclude.addAll(
+          packageConfig.packages
+              .map((Package e) => e.name)
+              .where((String e) => regExp.hasMatch(e)),
+        );
+      }
+    } on FormatException catch (e) {
+      throwToolExit('Regular expression syntax is invalid. $e');
+    }
+    return packagesToInclude;
+  }
+
   /// Parses a test file/directory target passed as an argument and returns it
   /// as an absolute file:/// [URI] with optional querystring for name/line/col.
   Uri _parseTestArgument(String arg) {
@@ -523,9 +568,15 @@ class TestCommand extends FlutterCommand with DeviceBasedDevelopmentArtifacts {
         .replace(query: queryPart.isEmpty ? null : queryPart);
   }
 
-  Future<void> _buildTestAsset() async {
+  Future<void> _buildTestAsset({
+    required String? flavor,
+    required ImpellerStatus impellerStatus,
+  }) async {
     final AssetBundle assetBundle = AssetBundleFactory.instance.createBundle();
-    final int build = await assetBundle.build(packagesPath: '.packages');
+    final int build = await assetBundle.build(
+      packagesPath: '.packages',
+      flavor: flavor,
+    );
     if (build != 0) {
       throwToolExit('Error: Failed to build asset bundle');
     }
@@ -533,14 +584,18 @@ class TestCommand extends FlutterCommand with DeviceBasedDevelopmentArtifacts {
       await writeBundle(
         globals.fs.directory(globals.fs.path.join('build', 'unit_test_assets')),
         assetBundle.entries,
-        assetBundle.entryKinds,
         targetPlatform: TargetPlatform.tester,
+        impellerStatus: impellerStatus,
       );
     }
   }
 
-  bool _needRebuild(Map<String, DevFSContent> entries) {
-    final File manifest = globals.fs.file(globals.fs.path.join('build', 'unit_test_assets', 'AssetManifest.json'));
+  bool _needRebuild(Map<String, AssetBundleEntry> entries) {
+    // TODO(andrewkolos): This logic might fail in the future if we change the
+    // schema of the contents of the asset manifest file and the user does not
+    // perform a `flutter clean` after upgrading.
+    // See https://github.com/flutter/flutter/issues/128563.
+    final File manifest = globals.fs.file(globals.fs.path.join('build', 'unit_test_assets', 'AssetManifest.bin'));
     if (!manifest.existsSync()) {
       return true;
     }

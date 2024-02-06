@@ -9,7 +9,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import '../rendering/mock_canvas.dart';
+import '../rendering/rendering_tester.dart';
 
 class SpyFixedExtentScrollController extends FixedExtentScrollController {
   /// Override for test visibility only.
@@ -47,7 +47,7 @@ void main() {
     expect(paragraph.text.style!.color, isSameColorAs(CupertinoColors.black));
     expect(paragraph.text.style!.copyWith(color: CupertinoColors.black), const TextStyle(
       inherit: false,
-      fontFamily: '.SF Pro Display',
+      fontFamily: 'CupertinoSystemDisplay',
       fontSize: 21.0,
       fontWeight: FontWeight.w400,
       letterSpacing: -0.6,
@@ -82,7 +82,7 @@ void main() {
 
     testWidgets('selected item is in the middle', (WidgetTester tester) async {
       final FixedExtentScrollController controller = FixedExtentScrollController(initialItem: 1);
-
+      addTearDown(controller.dispose);
       await tester.pumpWidget(
         Directionality(
           textDirection: TextDirection.ltr,
@@ -319,6 +319,7 @@ void main() {
 
     testWidgets('a drag in between items settles back', (WidgetTester tester) async {
       final FixedExtentScrollController controller = FixedExtentScrollController(initialItem: 10);
+      addTearDown(controller.dispose);
       final List<int> selectedItems = <int>[];
 
       await tester.pumpWidget(
@@ -374,6 +375,7 @@ void main() {
     testWidgets('a big fling that overscrolls springs back', (WidgetTester tester) async {
       final FixedExtentScrollController controller =
           FixedExtentScrollController(initialItem: 10);
+      addTearDown(controller.dispose);
       final List<int> selectedItems = <int>[];
 
       await tester.pumpWidget(
@@ -499,6 +501,7 @@ void main() {
 
   testWidgets('Scroll controller is detached upon dispose', (WidgetTester tester) async {
     final SpyFixedExtentScrollController controller = SpyFixedExtentScrollController();
+    addTearDown(controller.dispose);
     expect(controller.hasListeners, false);
     expect(controller.positions.length, 0);
 
@@ -526,6 +529,64 @@ void main() {
     await tester.pumpWidget(const SizedBox.expand());
     expect(controller.hasListeners, false);
     expect(controller.positions.length, 0);
+  });
+
+  testWidgets(
+      'Registers taps and does not crash with certain diameterRatio', (WidgetTester tester) async {
+    // Regression test for https://github.com/flutter/flutter/issues/126491
+
+    final List<int> children = List<int>.generate(100, (int index) => index);
+    final List<int> paintedChildren = <int>[];
+    final Set<int> tappedChildren = <int>{};
+
+    await tester.pumpWidget(CupertinoApp(
+      home: Align(
+        alignment: Alignment.topLeft,
+        child: Center(
+          child: SizedBox(
+            height: 120,
+            child: CupertinoPicker(
+              itemExtent: 55,
+              diameterRatio: 0.9,
+              onSelectedItemChanged: (int index) {},
+              children: children
+                .map<Widget>((int index) =>
+                  GestureDetector(
+                    key: ValueKey<int>(index),
+                    onTap: () {
+                      tappedChildren.add(index);
+                    },
+                    child: SizedBox(
+                      width: 55,
+                      height: 55,
+                      child: CustomPaint(
+                        painter: TestCallbackPainter(onPaint: () {
+                          paintedChildren.add(index);
+                        }),
+                      ),
+                    ),
+                  ),
+                )
+                .toList(),
+            ),
+          ),
+        ),
+      ),
+    ));
+
+    // Children are painted two times for whatever reason
+    expect(paintedChildren, <int>[0, 1, 0, 1]);
+
+    // Expect hitting 0 and 1, which are painted
+    await tester.tap(find.byKey(const ValueKey<int>(0)));
+    expect(tappedChildren, const <int>[0]);
+
+    await tester.tap(find.byKey(const ValueKey<int>(1)));
+    expect(tappedChildren, const <int>[0, 1]);
+
+    // The third child is not painted, so is not hit
+    await tester.tap(find.byKey(const ValueKey<int>(2)), warnIfMissed: false);
+    expect(tappedChildren, const <int>[0, 1]);
   });
 
 }

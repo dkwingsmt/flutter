@@ -139,7 +139,6 @@ String generateTestBootstrap({
   final String websocketUrl = host.type == InternetAddressType.IPv4
       ? 'ws://${host.address}'
       : 'ws://[${host.address}]';
-  final String encodedWebsocketUrl = Uri.encodeComponent(websocketUrl);
 
   final StringBuffer buffer = StringBuffer();
   buffer.write('''
@@ -161,7 +160,7 @@ import 'dart:developer' as developer;
 ''');
   }
   buffer.write('''
-import 'package:test_api/src/remote_listener.dart';
+import 'package:test_api/backend.dart';
 import 'package:stream_channel/stream_channel.dart';
 import 'package:stack_trace/stack_trace.dart';
 
@@ -212,8 +211,8 @@ void catchIsolateErrors() {
 }
 
 void main() {
-  String serverPort = Platform.environment['SERVER_PORT'] ?? '';
-  String server = Uri.decodeComponent('$encodedWebsocketUrl:\$serverPort');
+  final String serverPort = Platform.environment['SERVER_PORT'] ?? '';
+  final String server = '$websocketUrl:\$serverPort';
   StreamChannel<dynamic> testChannel = serializeSuite(() {
     catchIsolateErrors();
 ''');
@@ -392,9 +391,13 @@ class FlutterPlatform extends PlatformPlugin {
     String isolateId,
     String expression,
     List<String> definitions,
+    List<String> definitionTypes,
     List<String> typeDefinitions,
+    List<String> typeBounds,
+    List<String> typeDefaults,
     String libraryUri,
     String? klass,
+    String? method,
     bool isStatic,
   ) async {
     if (compiler == null || compiler!.compiler == null) {
@@ -402,7 +405,8 @@ class FlutterPlatform extends PlatformPlugin {
     }
     final CompilerOutput? compilerOutput =
       await compiler!.compiler!.compileExpression(expression, definitions,
-        typeDefinitions, libraryUri, klass, isStatic);
+        definitionTypes, typeDefinitions, typeBounds, typeDefaults, libraryUri,
+        klass, method, isStatic);
     if (compilerOutput != null && compilerOutput.expressionData != null) {
       return base64.encode(compilerOutput.expressionData!);
     }

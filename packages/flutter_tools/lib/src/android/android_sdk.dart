@@ -2,49 +2,56 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import 'package:meta/meta.dart';
-
 import '../base/common.dart';
+import '../base/config.dart';
 import '../base/file_system.dart';
-import '../base/os.dart';
 import '../base/platform.dart';
 import '../base/process.dart';
 import '../base/version.dart';
 import '../convert.dart';
 import '../globals.dart' as globals;
-import 'android_studio.dart';
+import 'java.dart';
 
-// ANDROID_HOME is deprecated.
+// ANDROID_SDK_ROOT is deprecated.
 // See https://developer.android.com/studio/command-line/variables.html#envar
-const String kAndroidHome = 'ANDROID_HOME';
 const String kAndroidSdkRoot = 'ANDROID_SDK_ROOT';
+const String kAndroidHome = 'ANDROID_HOME';
+
+// No official environment variable for the NDK root is documented:
+// https://developer.android.com/tools/variables#envar
+// The follow three seem to be most commonly used.
+const String kAndroidNdkHome = 'ANDROID_NDK_HOME';
+const String kAndroidNdkPath = 'ANDROID_NDK_PATH';
+const String kAndroidNdkRoot = 'ANDROID_NDK_ROOT';
 
 final RegExp _numberedAndroidPlatformRe = RegExp(r'^android-([0-9]+)$');
 final RegExp _sdkVersionRe = RegExp(r'^ro.build.version.sdk=([0-9]+)$');
 
 // Android SDK layout:
 
-// $ANDROID_SDK_ROOT/platform-tools/adb
+// $ANDROID_HOME/platform-tools/adb
 
-// $ANDROID_SDK_ROOT/build-tools/19.1.0/aapt, dx, zipalign
-// $ANDROID_SDK_ROOT/build-tools/22.0.1/aapt
-// $ANDROID_SDK_ROOT/build-tools/23.0.2/aapt
-// $ANDROID_SDK_ROOT/build-tools/24.0.0-preview/aapt
-// $ANDROID_SDK_ROOT/build-tools/25.0.2/apksigner
+// $ANDROID_HOME/build-tools/19.1.0/aapt, dx, zipalign
+// $ANDROID_HOME/build-tools/22.0.1/aapt
+// $ANDROID_HOME/build-tools/23.0.2/aapt
+// $ANDROID_HOME/build-tools/24.0.0-preview/aapt
+// $ANDROID_HOME/build-tools/25.0.2/apksigner
 
-// $ANDROID_SDK_ROOT/platforms/android-22/android.jar
-// $ANDROID_SDK_ROOT/platforms/android-23/android.jar
-// $ANDROID_SDK_ROOT/platforms/android-N/android.jar
+// $ANDROID_HOME/platforms/android-22/android.jar
+// $ANDROID_HOME/platforms/android-23/android.jar
+// $ANDROID_HOME/platforms/android-N/android.jar
 class AndroidSdk {
-  AndroidSdk(this.directory) {
-    reinitialize();
+  AndroidSdk(this.directory, {
+    Java? java,
+    FileSystem? fileSystem,
+  }): _java = java {
+    reinitialize(fileSystem: fileSystem);
   }
-
-  static const String javaHomeEnvironmentVariable = 'JAVA_HOME';
-  static const String _javaExecutable = 'java';
 
   /// The Android SDK root directory.
   final Directory directory;
+
+  final Java? _java;
 
   List<AndroidSdkVersion> _sdkVersions = <AndroidSdkVersion>[];
   AndroidSdkVersion? _latestVersion;
@@ -323,11 +330,121 @@ class AndroidSdk {
 
   String? getAvdManagerPath() => getCmdlineToolsPath(globals.platform.isWindows ? 'avdmanager.bat' : 'avdmanager');
 
+  /// From https://developer.android.com/ndk/guides/other_build_systems.
+  static const Map<String, String> _llvmHostDirectoryName = <String, String>{
+    'macos': 'darwin-x86_64',
+    'linux': 'linux-x86_64',
+    'windows': 'windows-x86_64',
+  };
+
+  /// Locates the binary path for an NDK binary.
+  ///
+  /// The order of resolution is as follows:
+  ///
+  /// 1. If [globals.config] defines an `'android-ndk'` use that.
+  /// 2. If the environment variable `ANDROID_NDK_HOME` is defined, use that.
+  /// 3. If the environment variable `ANDROID_NDK_PATH` is defined, use that.
+  /// 4. If the environment variable `ANDROID_NDK_ROOT` is defined, use that.
+  /// 5. Look for the default install location inside the Android SDK:
+  ///    [directory]/ndk/\<version\>/. If multiple versions exist, use the
+  ///    newest.
+  String? getNdkBinaryPath(
+    String binaryName, {
+    Platform? platform,
+    Config? config,
+  }) {
+    platform ??= globals.platform;
+    config ??= globals.config;
+    Directory? findAndroidNdkHomeDir() {
+      String? androidNdkHomeDir;
+      if (config!.containsKey('android-ndk')) {
+        androidNdkHomeDir = config.getValue('android-ndk') as String?;
+      } else if (platform!.environment.containsKey(kAndroidNdkHome)) {
+        androidNdkHomeDir = platform.environment[kAndroidNdkHome];
+      } else if (platform.environment.containsKey(kAndroidNdkPath)) {
+        androidNdkHomeDir = platform.environment[kAndroidNdkPath];
+      } else if (platform.environment.containsKey(kAndroidNdkRoot)) {
+        androidNdkHomeDir = platform.environment[kAndroidNdkRoot];
+      }
+      if (androidNdkHomeDir != null) {
+        return directory.fileSystem.directory(androidNdkHomeDir);
+      }
+
+      // Look for the default install location of the NDK inside the Android
+      // SDK when installed through `sdkmanager` or Android studio.
+      final Directory ndk = directory.childDirectory('ndk');
+      if (!ndk.existsSync()) {
+        return null;
+      }
+      final List<Version> ndkVersions = ndk
+          .listSync()
+          .map((FileSystemEntity entity) {
+            try {
+              return Version.parse(entity.basename);
+            } on Exception {
+              return null;
+            }
+          })
+          .whereType<Version>()
+          .toList()
+        // Use latest NDK first.
+        ..sort((Version a, Version b) => -a.compareTo(b));
+      if (ndkVersions.isEmpty) {
+        return null;
+      }
+      return ndk.childDirectory(ndkVersions.first.toString());
+    }
+
+    final Directory? androidNdkHomeDir = findAndroidNdkHomeDir();
+    if (androidNdkHomeDir == null) {
+      return null;
+    }
+    final File executable = androidNdkHomeDir
+        .childDirectory('toolchains')
+        .childDirectory('llvm')
+        .childDirectory('prebuilt')
+        .childDirectory(_llvmHostDirectoryName[platform.operatingSystem]!)
+        .childDirectory('bin')
+        .childFile(binaryName);
+    if (executable.existsSync()) {
+      // LLVM missing in this NDK version.
+      return executable.path;
+    }
+    return null;
+  }
+
+  String? getNdkClangPath({Platform? platform, Config? config}) {
+    platform ??= globals.platform;
+    return getNdkBinaryPath(
+      platform.isWindows ? 'clang.exe' : 'clang',
+      platform: platform,
+      config: config,
+    );
+  }
+
+  String? getNdkArPath({Platform? platform, Config? config}) {
+    platform ??= globals.platform;
+    return getNdkBinaryPath(
+      platform.isWindows ? 'llvm-ar.exe' : 'llvm-ar',
+      platform: platform,
+      config: config,
+    );
+  }
+
+  String? getNdkLdPath({Platform? platform, Config? config}) {
+    platform ??= globals.platform;
+    return getNdkBinaryPath(
+      platform.isWindows ? 'ld.lld.exe' : 'ld.lld',
+      platform: platform,
+      config: config,
+    );
+  }
+
   /// Sets up various paths used internally.
   ///
   /// This method should be called in a case where the tooling may have updated
   /// SDK artifacts, such as after running a gradle build.
-  void reinitialize() {
+  void reinitialize({FileSystem? fileSystem}) {
     List<Version> buildTools = <Version>[]; // 19.1.0, 22.0.1, ...
 
     final Directory buildToolsDir = directory.childDirectory('build-tools');
@@ -390,7 +507,7 @@ class AndroidSdk {
         sdkLevel: platformVersion,
         platformName: platformName,
         buildToolsVersion: buildToolsVersion,
-        fileSystem: globals.fs,
+        fileSystem: fileSystem ?? globals.fs,
       );
     }).whereType<AndroidSdkVersion>().toList();
 
@@ -411,162 +528,6 @@ class AndroidSdk {
     return null;
   }
 
-  /// Returns the version of java in the format \d(.\d)+(.\d)+
-  /// Returns null if version not found.
-  String? getJavaVersion({
-    required AndroidStudio? androidStudio,
-    required FileSystem fileSystem,
-    required OperatingSystemUtils operatingSystemUtils,
-    required Platform platform,
-    required ProcessUtils processUtils,
-  }) {
-    final String? javaBinary = findJavaBinary(
-      androidStudio: androidStudio,
-      fileSystem: fileSystem,
-      operatingSystemUtils: operatingSystemUtils,
-      platform: platform,
-    );
-    if (javaBinary == null) {
-      globals.printTrace('Could not find java binary to get version.');
-      return null;
-    }
-    final RunResult result = processUtils.runSync(
-      <String>[javaBinary, '--version'],
-      environment: sdkManagerEnv,
-    );
-    if (result.exitCode != 0) {
-      globals.printTrace(
-          'java --version failed: exitCode: ${result.exitCode} stdout: ${result.stdout} stderr: ${result.stderr}');
-      return null;
-    }
-    return parseJavaVersion(result.stdout);
-  }
-
-  /// Extracts JDK version from the output of java --version.
-  @visibleForTesting
-  static String? parseJavaVersion(String rawVersionOutput) {
-    // The contents that matter come in the format '11.0.18' or '1.8.0_202'.
-    final RegExp jdkVersionRegex = RegExp(r'\d+\.\d+(\.\d+(?:_\d+)?)?');
-    final Iterable<RegExpMatch> matches =
-        jdkVersionRegex.allMatches(rawVersionOutput);
-    if (matches.isEmpty) {
-      globals.logger.printWarning(_formatJavaVersionWarning(rawVersionOutput));
-      return null;
-    }
-    final String? versionString = matches.first.group(0);
-    if (versionString == null || versionString.split('_').isEmpty) {
-      globals.logger.printWarning(_formatJavaVersionWarning(rawVersionOutput));
-      return null;
-    }
-    // Trim away _d+ from versions 1.8 and below.
-    return versionString.split('_').first;
-  }
-
-  /// A value that would be appropriate to use as JAVA_HOME.
-  ///
-  /// This method considers jdk in the following order:
-  /// * the JDK bundled with Android Studio, if one is found;
-  /// * the JAVA_HOME in the ambient environment, if set;
-  String? get javaHome {
-    return findJavaHome(
-      androidStudio: globals.androidStudio,
-      fileSystem: globals.fs,
-      operatingSystemUtils: globals.os,
-      platform: globals.platform,
-    );
-  }
-
-
-  static String? findJavaHome({
-    required AndroidStudio? androidStudio,
-    required FileSystem fileSystem,
-    required OperatingSystemUtils operatingSystemUtils,
-    required Platform platform,
-  }) {
-    if (androidStudio?.javaPath != null) {
-      globals.printTrace("Using Android Studio's java.");
-      return androidStudio!.javaPath!;
-    }
-
-    final String? javaHomeEnv = platform.environment[javaHomeEnvironmentVariable];
-    if (javaHomeEnv != null) {
-      globals.printTrace('Using JAVA_HOME from environment valuables.');
-      return javaHomeEnv;
-    }
-    return null;
-  }
-
-  /// Finds the java binary that is used for all operations across the tool.
-  ///
-  /// This comes from [findJavaHome] if that method returns non-null;
-  /// otherwise, it gets from searching PATH.
-  // TODO(andrewkolos): To prevent confusion when debugging Android-related
-  // issues (see https://github.com/flutter/flutter/issues/122609 for an example),
-  // this logic should be consistently followed by any Java-dependent operation
-  // across the  the tool (building Android apps, interacting with the Android SDK, etc.).
-  // Currently, this consistency is fragile since the logic used for building
-  // Android apps exists independently of this method.
-  // See https://github.com/flutter/flutter/issues/124252.
-  static String? findJavaBinary({
-    required AndroidStudio? androidStudio,
-    required FileSystem fileSystem,
-    required OperatingSystemUtils operatingSystemUtils,
-    required Platform platform,
-  }) {
-    final String? javaHome = findJavaHome(
-      androidStudio: androidStudio,
-      fileSystem: fileSystem,
-      operatingSystemUtils: operatingSystemUtils,
-      platform: platform,
-    );
-
-    if (javaHome != null) {
-      return fileSystem.path.join(javaHome, 'bin', 'java');
-    }
-
-    // Fallback to PATH based lookup.
-    final String? pathJava = operatingSystemUtils.which(_javaExecutable)?.path;
-    if (pathJava != null) {
-      globals.printTrace('Using java from PATH.');
-    } else {
-      globals.printTrace('Could not find java path.');
-    }
-    return pathJava;
-  }
-
-  // Returns a user visible String that says the tool failed to parse
-  // the version of java along with the output.
-  static String _formatJavaVersionWarning(String javaVersionRaw) {
-    return 'Could not parse java version from: \n'
-        '$javaVersionRaw \n'
-        'If there is a version please look for an existing bug '
-        'https://github.com/flutter/flutter/issues/'
-        ' and if one does not exist file a new issue.';
-  }
-
-  Map<String, String>? _sdkManagerEnv;
-
-  /// Returns an environment with the Java folder added to PATH for use in calling
-  /// Java-based Android SDK commands such as sdkmanager and avdmanager.
-  Map<String, String> get sdkManagerEnv {
-    if (_sdkManagerEnv == null) {
-      // If we can locate Java, then add it to the path used to run the Android SDK manager.
-      _sdkManagerEnv = <String, String>{};
-      final String? javaBinary = findJavaBinary(
-        androidStudio: globals.androidStudio,
-        fileSystem: globals.fs,
-        operatingSystemUtils: globals.os,
-        platform: globals.platform,
-      );
-      if (javaBinary != null && globals.platform.environment['PATH'] != null) {
-        _sdkManagerEnv!['PATH'] = globals.fs.path.dirname(javaBinary) +
-                                  globals.os.pathVarSeparator +
-                                  globals.platform.environment['PATH']!;
-      }
-    }
-    return _sdkManagerEnv!;
-  }
-
   /// Returns the version of the Android SDK manager tool or null if not found.
   String? get sdkManagerVersion {
     if (sdkManagerPath == null || !globals.processManager.canRun(sdkManagerPath)) {
@@ -577,7 +538,7 @@ class AndroidSdk {
     }
     final RunResult result = globals.processUtils.runSync(
       <String>[sdkManagerPath!, '--version'],
-      environment: sdkManagerEnv,
+      environment: _java?.environment,
     );
     if (result.exitCode != 0) {
       globals.printTrace('sdkmanager --version failed: exitCode: ${result.exitCode} stdout: ${result.stdout} stderr: ${result.stderr}');

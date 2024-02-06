@@ -22,7 +22,11 @@ rootProject.allprojects {
 apply plugin: 'com.android.library'
 
 android {
-    compileSdkVersion {{compileSdkVersion}}
+    if (project.android.hasProperty("namespace")) {
+        namespace '{{androidIdentifier}}'
+    }
+
+    compileSdk {{compileSdkVersion}}
 
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
@@ -30,7 +34,7 @@ android {
     }
 
     defaultConfig {
-        minSdkVersion {{minSdkVersion}}
+        minSdk {{minSdkVersion}}
     }
 
     dependencies {

@@ -6,13 +6,47 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import '../foundation/leak_tracking.dart';
-
 void main() {
   test('ActionIconThemeData copyWith, ==, hashCode basics', () {
     expect(const ActionIconThemeData(), const ActionIconThemeData().copyWith());
     expect(const ActionIconThemeData().hashCode,
         const ActionIconThemeData().copyWith().hashCode);
+  });
+
+  testWidgets('ActionIconThemeData copyWith overrides all properties', (WidgetTester tester) async {
+    // This is a regression test for https://github.com/flutter/flutter/issues/126762.
+    Widget originalButtonBuilder(BuildContext context) {
+      return const SizedBox();
+    }
+    Widget newButtonBuilder(BuildContext context) {
+      return const Icon(Icons.add);
+    }
+
+    // Create a ActionIconThemeData with all properties set.
+    final ActionIconThemeData original = ActionIconThemeData(
+      backButtonIconBuilder: originalButtonBuilder,
+      closeButtonIconBuilder: originalButtonBuilder,
+      drawerButtonIconBuilder: originalButtonBuilder,
+      endDrawerButtonIconBuilder: originalButtonBuilder,
+    );
+    // Check if the all properties are copied.
+    final ActionIconThemeData copy = original.copyWith();
+    expect(copy.backButtonIconBuilder, originalButtonBuilder);
+    expect(copy.closeButtonIconBuilder, originalButtonBuilder);
+    expect(copy.drawerButtonIconBuilder, originalButtonBuilder);
+    expect(copy.endDrawerButtonIconBuilder, originalButtonBuilder);
+
+    // Check if the properties are overridden.
+    final ActionIconThemeData overridden = original.copyWith(
+      backButtonIconBuilder: newButtonBuilder,
+      closeButtonIconBuilder: newButtonBuilder,
+      drawerButtonIconBuilder: newButtonBuilder,
+      endDrawerButtonIconBuilder: newButtonBuilder,
+    );
+    expect(overridden.backButtonIconBuilder, newButtonBuilder);
+    expect(overridden.closeButtonIconBuilder, newButtonBuilder);
+    expect(overridden.drawerButtonIconBuilder, newButtonBuilder);
+    expect(overridden.endDrawerButtonIconBuilder, newButtonBuilder);
   });
 
   test('ActionIconThemeData defaults', () {
@@ -23,7 +57,7 @@ void main() {
     expect(themeData.endDrawerButtonIconBuilder, null);
   });
 
-  testWidgetsWithLeakTracking('Default ActionIconThemeData debugFillProperties',
+  testWidgets('Default ActionIconThemeData debugFillProperties',
       (WidgetTester tester) async {
     final DiagnosticPropertiesBuilder builder = DiagnosticPropertiesBuilder();
     const ActionIconThemeData().debugFillProperties(builder);
@@ -36,7 +70,7 @@ void main() {
     expect(description, <String>[]);
   });
 
-  testWidgetsWithLeakTracking('ActionIconThemeData implements debugFillProperties',
+  testWidgets('ActionIconThemeData implements debugFillProperties',
       (WidgetTester tester) async {
     Widget actionButtonIconBuilder(BuildContext context) {
       return const Icon(IconData(0));
@@ -64,7 +98,7 @@ void main() {
     ]);
   });
 
-  testWidgetsWithLeakTracking('Action buttons use ThemeData action icon theme', (WidgetTester tester) async {
+  testWidgets('Action buttons use ThemeData action icon theme', (WidgetTester tester) async {
     const Color green = Color(0xff00ff00);
     const IconData icon = IconData(0);
 
@@ -125,7 +159,7 @@ void main() {
   // This test is essentially the same as 'Action buttons use ThemeData action icon theme'. In
   // this case the theme is introduced with the ActionIconTheme widget instead of
   // ThemeData.actionIconTheme.
-  testWidgetsWithLeakTracking('Action buttons use ActionIconTheme', (WidgetTester tester) async {
+  testWidgets('Action buttons use ActionIconTheme', (WidgetTester tester) async {
     const Color green = Color(0xff00ff00);
     const IconData icon = IconData(0);
 

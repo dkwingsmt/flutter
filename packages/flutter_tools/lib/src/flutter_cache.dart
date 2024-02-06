@@ -7,8 +7,7 @@ import 'dart:async';
 import 'package:meta/meta.dart';
 import 'package:package_config/package_config.dart';
 
-import 'android/android_sdk.dart';
-import 'android/android_studio.dart';
+import 'android/java.dart';
 import 'base/common.dart';
 import 'base/error_handling_io.dart';
 import 'base/file_system.dart';
@@ -236,18 +235,18 @@ class FlutterSdk extends EngineCachedArtifact {
 
   @override
   List<List<String>> getBinaryDirs() {
-    // Currently only Linux supports both arm64 and x64.
+    // Linux and Windows both support arm64 and x64.
     final String arch = cache.getHostPlatformArchName();
     return <List<String>>[
       <String>['common', 'flutter_patched_sdk.zip'],
       <String>['common', 'flutter_patched_sdk_product.zip'],
       if (cache.includeAllPlatforms) ...<List<String>>[
-        <String>['windows-x64', 'windows-x64/artifacts.zip'],
+        <String>['windows-$arch', 'windows-$arch/artifacts.zip'],
         <String>['linux-$arch', 'linux-$arch/artifacts.zip'],
         <String>['darwin-x64', 'darwin-$arch/artifacts.zip'],
       ]
       else if (_platform.isWindows)
-        <String>['windows-x64', 'windows-x64/artifacts.zip']
+        <String>['windows-$arch', 'windows-$arch/artifacts.zip']
       else if (_platform.isMacOS)
         <String>['darwin-x64', 'darwin-$arch/artifacts.zip']
       else if (_platform.isLinux)
@@ -305,7 +304,8 @@ class WindowsEngineArtifacts extends EngineCachedArtifact {
   @override
   List<List<String>> getBinaryDirs() {
     if (_platform.isWindows || ignorePlatformFiltering) {
-      return _windowsDesktopBinaryDirs;
+      final String arch = cache.getHostPlatformArchName();
+      return _getWindowsDesktopBinaryDirs(arch);
     }
     return const <List<String>>[];
   }
@@ -387,12 +387,17 @@ class AndroidGenSnapshotArtifacts extends EngineCachedArtifact {
 /// A cached artifact containing the Maven dependencies used to build Android projects.
 ///
 /// This is a no-op if the android SDK is not available.
+///
+/// Set [Java] to `null` to indicate that no Java/JDK installation could be found.
 class AndroidMavenArtifacts extends ArtifactSet {
   AndroidMavenArtifacts(this.cache, {
+    required Java? java,
     required Platform platform,
-  }) : _platform = platform,
+  }) : _java = java,
+       _platform = platform,
        super(DevelopmentArtifact.androidMaven);
 
+  final Java? _java;
   final Platform _platform;
   final Cache cache;
 
@@ -404,6 +409,8 @@ class AndroidMavenArtifacts extends ArtifactSet {
     OperatingSystemUtils operatingSystemUtils,
     {bool offline = false}
   ) async {
+    // TODO(andrewkolos): Should this really be no-op if the Android SDK
+    // is unavailable? https://github.com/flutter/flutter/issues/127848
     if (globals.androidSdk == null) {
       return;
     }
@@ -424,10 +431,7 @@ class AndroidMavenArtifacts extends ArtifactSet {
           '--project-cache-dir', tempDir.path,
           'resolveDependencies',
         ],
-        environment: <String, String>{
-          if (javaPath != null)
-            AndroidSdk.javaHomeEnvironmentVariable: javaPath!,
-        },
+        environment: _java?.environment,
       );
       if (processResult.exitCode != 0) {
         logger.printError('Failed to download the Android dependencies');
@@ -736,12 +740,12 @@ class FontSubsetArtifacts extends EngineCachedArtifact {
 
   @override
   List<List<String>> getBinaryDirs() {
-    // Currently only Linux supports both arm64 and x64.
+    // Linux and Windows both support arm64 and x64.
     final String arch = cache.getHostPlatformArchName();
     final Map<String, List<String>> artifacts = <String, List<String>> {
       'macos': <String>['darwin-x64', 'darwin-$arch/$artifactName.zip'],
       'linux': <String>['linux-$arch', 'linux-$arch/$artifactName.zip'],
-      'windows': <String>['windows-x64', 'windows-x64/$artifactName.zip'],
+      'windows': <String>['windows-$arch', 'windows-$arch/$artifactName.zip'],
     };
     if (cache.includeAllPlatforms) {
       return artifacts.values.toList();
@@ -833,18 +837,25 @@ class IosUsbArtifacts extends CachedArtifact {
   }
 
   @visibleForTesting
-  Uri get archiveUri => Uri.parse('${cache.storageBaseUrl}/flutter_infra_release/ios-usb-dependencies${cache.useUnsignedMacBinaries ? '/unsigned' : ''}/$name/$version/$name.zip');
+  Uri get archiveUri => Uri.parse(
+    '${cache.realmlessStorageBaseUrl}/flutter_infra_release/'
+    'ios-usb-dependencies${cache.useUnsignedMacBinaries ? '/unsigned' : ''}'
+    '/$name/$version/$name.zip',
+  );
 }
 
 // TODO(zanderso): upload debug desktop artifacts to host-debug and
 // remove from existing host folder.
 // https://github.com/flutter/flutter/issues/38935
-const List<List<String>> _windowsDesktopBinaryDirs = <List<String>>[
-  <String>['windows-x64', 'windows-x64-debug/windows-x64-flutter.zip'],
-  <String>['windows-x64', 'windows-x64/flutter-cpp-client-wrapper.zip'],
-  <String>['windows-x64-profile', 'windows-x64-profile/windows-x64-flutter.zip'],
-  <String>['windows-x64-release', 'windows-x64-release/windows-x64-flutter.zip'],
-];
+
+List<List<String>> _getWindowsDesktopBinaryDirs(String arch) {
+  return <List<String>>[
+    <String>['windows-$arch', 'windows-$arch-debug/windows-$arch-flutter.zip'],
+    <String>['windows-$arch', 'windows-$arch/flutter-cpp-client-wrapper.zip'],
+    <String>['windows-$arch-profile', 'windows-$arch-profile/windows-$arch-flutter.zip'],
+    <String>['windows-$arch-release', 'windows-$arch-release/windows-$arch-flutter.zip'],
+  ];
+}
 
 const List<List<String>> _macOSDesktopBinaryDirs = <List<String>>[
   <String>['darwin-x64', 'darwin-x64/FlutterMacOS.framework.zip'],

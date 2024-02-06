@@ -90,12 +90,12 @@ enum DismissDirection {
 class Dismissible extends StatefulWidget {
   /// Creates a widget that can be dismissed.
   ///
-  /// The [key] argument must not be null because [Dismissible]s are commonly
-  /// used in lists and removed from the list when dismissed. Without keys, the
-  /// default behavior is to sync widgets based on their index in the list,
-  /// which means the item after the dismissed item would be synced with the
-  /// state of the dismissed item. Using keys causes the widgets to sync
-  /// according to their keys and avoids this pitfall.
+  /// The [key] argument is required because [Dismissible]s are commonly used in
+  /// lists and removed from the list when dismissed. Without keys, the default
+  /// behavior is to sync widgets based on their index in the list, which means
+  /// the item after the dismissed item would be synced with the state of the
+  /// dismissed item. Using keys causes the widgets to sync according to their
+  /// keys and avoids this pitfall.
   const Dismissible({
     required Key key,
     required this.child,
@@ -439,7 +439,7 @@ class _DismissibleState extends State<Dismissible> with TickerProviderStateMixin
   }
 
   void _handleDismissUpdateValueChanged() {
-    if(widget.onUpdate != null) {
+    if (widget.onUpdate != null) {
       final bool oldDismissThresholdReached = _dismissThresholdReached;
       _dismissThresholdReached = _moveController!.value > (widget.dismissThresholds[_dismissDirection] ?? _kDismissThreshold);
       final DismissUpdateDetails details = DismissUpdateDetails(

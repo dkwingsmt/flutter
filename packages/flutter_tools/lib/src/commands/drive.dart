@@ -25,6 +25,7 @@ import '../drive/drive_service.dart';
 import '../drive/web_driver_service.dart' show Browser;
 import '../globals.dart' as globals;
 import '../ios/devices.dart';
+import '../macos/macos_ipad_device.dart';
 import '../resident_runner.dart';
 import '../runner/flutter_command.dart' show FlutterCommandCategory, FlutterCommandResult, FlutterOptions;
 import '../web/web_device.dart';
@@ -71,7 +72,6 @@ class DriveCommand extends RunCommandBase {
     // to prevent a local network permission dialog on iOS 14+,
     // which cannot be accepted or dismissed in a CI environment.
     addPublishPort(enabledByDefault: false, verboseHelp: verboseHelp);
-    addMultidexOption();
     argParser
       ..addFlag('keep-app-running',
         help: 'Will keep the Flutter application running when done testing.\n'
@@ -223,6 +223,9 @@ class DriveCommand extends RunCommandBase {
       if (device is! AndroidDevice) {
         throwToolExit('--${FlutterOptions.kDeviceUser} is only supported for Android');
       }
+      if (device is MacOSDesignedForIPadDevice) {
+        throwToolExit('Mac Designed for iPad is currently not supported for flutter drive.');
+      }
     }
     return super.validateCommand();
   }
@@ -281,8 +284,6 @@ class DriveCommand extends RunCommandBase {
               'trace-startup': traceStartup,
             if (web)
               '--no-launch-chrome': true,
-            if (boolArg('multidex'))
-              'multidex': true,
           }
         );
       } else {
@@ -315,8 +316,10 @@ class DriveCommand extends RunCommandBase {
         profileMemory: stringArg('profile-memory'),
       );
 
-      // If the test is sent a signal or times out, take a screenshot
-      _registerScreenshotCallbacks(device);
+      if (screenshot != null) {
+        // If the test is sent a signal or times out, take a screenshot
+        _registerScreenshotCallbacks(device, _fileSystem.directory(screenshot));
+      }
 
       final int testResult = await testResultFuture;
 
@@ -327,7 +330,7 @@ class DriveCommand extends RunCommandBase {
 
       if (testResult != 0 && screenshot != null) {
         // Take a screenshot while the app is still running.
-        await _takeScreenshot(device);
+        await _takeScreenshot(device, _fileSystem.directory(screenshot));
         screenshotTaken = true;
       }
 
@@ -342,11 +345,11 @@ class DriveCommand extends RunCommandBase {
       if (testResult != 0) {
         throwToolExit(null);
       }
-    } on Exception catch(_) {
+    } on Exception catch (_) {
       // On exceptions, including ToolExit, take a screenshot on the device
       // unless a screenshot was already taken on test failure.
       if (!screenshotTaken && screenshot != null) {
-        await _takeScreenshot(device);
+        await _takeScreenshot(device, _fileSystem.directory(screenshot));
       }
       rethrow;
     }
@@ -369,7 +372,7 @@ class DriveCommand extends RunCommandBase {
     return timeoutSeconds;
   }
 
-  void _registerScreenshotCallbacks(Device device) {
+  void _registerScreenshotCallbacks(Device device, Directory screenshotDir) {
     _logger.printTrace('Registering signal handlers...');
     final Map<ProcessSignal, Object> tokens = <ProcessSignal, Object>{};
     for (final ProcessSignal signal in signalsToHandle) {
@@ -378,7 +381,7 @@ class DriveCommand extends RunCommandBase {
         (ProcessSignal signal) {
           _unregisterScreenshotCallbacks();
           _logger.printError('Caught $signal');
-          return _takeScreenshot(device);
+          return _takeScreenshot(device, screenshotDir);
         },
       );
     }
@@ -390,7 +393,7 @@ class DriveCommand extends RunCommandBase {
         Duration(seconds: timeoutSeconds),
         () {
           _unregisterScreenshotCallbacks();
-          _takeScreenshot(device);
+          _takeScreenshot(device, screenshotDir);
           throwToolExit('Timed out after $timeoutSeconds seconds');
         }
       );
@@ -450,13 +453,12 @@ class DriveCommand extends RunCommandBase {
     return '${pathWithNoExtension}_test${_fileSystem.path.extension(appFile)}';
   }
 
-  Future<void> _takeScreenshot(Device device) async {
+  Future<void> _takeScreenshot(Device device, Directory outputDirectory) async {
     if (!device.supportsScreenshot) {
       return;
     }
     try {
-      final Directory outputDirectory = _fileSystem.directory(screenshot)
-        ..createSync(recursive: true);
+      outputDirectory.createSync(recursive: true);
       final File outputFile = _fsUtils.getUniqueFile(
         outputDirectory,
         'drive',

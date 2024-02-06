@@ -6,12 +6,13 @@ import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter/gestures.dart' show kMinFlingVelocity;
+import 'package:flutter/gestures.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart' show HapticFeedback;
 import 'package:flutter/widgets.dart';
 
 import 'colors.dart';
+import 'localizations.dart';
 
 // The scale of the child at the time that the CupertinoContextMenu opens.
 // This value was eyeballed from a physical device running iOS 13.1.2.
@@ -131,9 +132,7 @@ enum _ContextMenuLocation {
 class CupertinoContextMenu extends StatefulWidget {
   /// Create a context menu.
   ///
-  /// [actions] is required and cannot be null or empty.
-  ///
-  /// [child] is required and cannot be null.
+  /// The [actions] parameter cannot be empty.
   CupertinoContextMenu({
     super.key,
     required this.actions,
@@ -152,9 +151,7 @@ class CupertinoContextMenu extends StatefulWidget {
   /// Use instead of the default constructor when it is needed to have a more
   /// custom animation.
   ///
-  /// [actions] is required and cannot be null or empty.
-  ///
-  /// [builder] is required.
+  /// The [actions] parameter cannot be empty.
   CupertinoContextMenu.builder({
     super.key,
     required this.actions,
@@ -388,7 +385,7 @@ class CupertinoContextMenu extends StatefulWidget {
   ///
   /// These actions are typically [CupertinoContextMenuAction]s.
   ///
-  /// This parameter cannot be null or empty.
+  /// This parameter must not be empty.
   final List<Widget> actions;
 
   /// If true, clicking on the [CupertinoContextMenuAction]s will
@@ -479,6 +476,7 @@ class _CupertinoContextMenuState extends State<CupertinoContextMenu> with Ticker
   OverlayEntry? _lastOverlayEntry;
   _ContextMenuRoute<void>? _route;
   final double _midpoint = CupertinoContextMenu.animationOpensAt / 2;
+  late final TapGestureRecognizer _tapGestureRecognizer;
 
   @override
   void initState() {
@@ -489,13 +487,20 @@ class _CupertinoContextMenuState extends State<CupertinoContextMenu> with Ticker
       upperBound: CupertinoContextMenu.animationOpensAt,
     );
     _openController.addStatusListener(_onDecoyAnimationStatusChange);
+    _tapGestureRecognizer = TapGestureRecognizer()
+      ..onTapCancel = _onTapCancel
+      ..onTapDown = _onTapDown
+      ..onTapUp = _onTapUp
+      ..onTap = _onTap;
   }
 
   void _listenerCallback() {
     if (_openController.status != AnimationStatus.reverse &&
-        _openController.value >= _midpoint &&
-        widget.enableHapticFeedback) {
-      HapticFeedback.heavyImpact();
+        _openController.value >= _midpoint) {
+      if (widget.enableHapticFeedback) {
+        HapticFeedback.heavyImpact();
+      }
+      _tapGestureRecognizer.resolve(GestureDisposition.accepted);
       _openController.removeListener(_listenerCallback);
     }
   }
@@ -535,7 +540,7 @@ class _CupertinoContextMenuState extends State<CupertinoContextMenu> with Ticker
 
     _route = _ContextMenuRoute<void>(
       actions: widget.actions,
-      barrierLabel: 'Dismiss',
+      barrierLabel: CupertinoLocalizations.of(context).menuDismissLabel,
       filter: ui.ImageFilter.blur(
         sigmaX: 5.0,
         sigmaY: 5.0,
@@ -563,6 +568,7 @@ class _CupertinoContextMenuState extends State<CupertinoContextMenu> with Ticker
           });
         }
         _lastOverlayEntry?.remove();
+        _lastOverlayEntry?.dispose();
         _lastOverlayEntry = null;
 
       case AnimationStatus.completed:
@@ -576,9 +582,10 @@ class _CupertinoContextMenuState extends State<CupertinoContextMenu> with Ticker
         // one frame.
         SchedulerBinding.instance.addPostFrameCallback((Duration _) {
           _lastOverlayEntry?.remove();
+          _lastOverlayEntry?.dispose();
           _lastOverlayEntry = null;
           _openController.reset();
-        });
+        }, debugLabel: 'removeContextMenuDecoy');
 
       case AnimationStatus.forward:
       case AnimationStatus.reverse:
@@ -662,11 +669,8 @@ class _CupertinoContextMenuState extends State<CupertinoContextMenu> with Ticker
   Widget build(BuildContext context) {
     return MouseRegion(
       cursor: kIsWeb ? SystemMouseCursors.click : MouseCursor.defer,
-      child: GestureDetector(
-        onTapCancel: _onTapCancel,
-        onTapDown: _onTapDown,
-        onTapUp: _onTapUp,
-        onTap: _onTap,
+      child: Listener(
+        onPointerDown: _tapGestureRecognizer.addPointer,
         child: TickerMode(
           enabled: !_childHidden,
           child: Visibility.maintain(
@@ -681,6 +685,7 @@ class _CupertinoContextMenuState extends State<CupertinoContextMenu> with Ticker
 
   @override
   void dispose() {
+    _tapGestureRecognizer.dispose();
     _openController.dispose();
     super.dispose();
   }
@@ -899,14 +904,11 @@ class _ContextMenuRoute<T> extends PopupRoute<T> {
   // Get the alignment for the _ContextMenuSheet's Transform.scale based on the
   // contextMenuLocation.
   static AlignmentDirectional getSheetAlignment(_ContextMenuLocation contextMenuLocation) {
-    switch (contextMenuLocation) {
-      case _ContextMenuLocation.center:
-        return AlignmentDirectional.topCenter;
-      case _ContextMenuLocation.right:
-        return AlignmentDirectional.topEnd;
-      case _ContextMenuLocation.left:
-        return AlignmentDirectional.topStart;
-    }
+    return switch (contextMenuLocation) {
+      _ContextMenuLocation.center => AlignmentDirectional.topCenter,
+      _ContextMenuLocation.right  => AlignmentDirectional.topEnd,
+      _ContextMenuLocation.left   => AlignmentDirectional.topStart,
+    };
   }
 
   // The place to start the sheetRect animation from.
@@ -1005,7 +1007,7 @@ class _ContextMenuRoute<T> extends PopupRoute<T> {
       _updateTweenRects();
       _internalOffstage = false;
       _setOffstageInternally();
-    });
+    }, debugLabel: 'renderContextMenuRouteOffstage');
     return super.didPush();
   }
 
@@ -1218,20 +1220,14 @@ class _ContextMenuRouteStaticState extends State<_ContextMenuRouteStatic> with T
   }
 
   Alignment _getChildAlignment(Orientation orientation, _ContextMenuLocation contextMenuLocation) {
-    switch (contextMenuLocation) {
-      case _ContextMenuLocation.center:
-        return orientation == Orientation.portrait
-          ? Alignment.bottomCenter
-          : Alignment.topRight;
-      case _ContextMenuLocation.right:
-        return orientation == Orientation.portrait
-          ? Alignment.bottomCenter
-          : Alignment.topLeft;
-      case _ContextMenuLocation.left:
-        return orientation == Orientation.portrait
-          ? Alignment.bottomCenter
-          : Alignment.topRight;
+    if (orientation == Orientation.portrait) {
+      return Alignment.bottomCenter;
     }
+    return switch (contextMenuLocation) {
+      _ContextMenuLocation.left   => Alignment.topRight,
+      _ContextMenuLocation.center => Alignment.topRight,
+      _ContextMenuLocation.right  => Alignment.topLeft,
+    };
   }
 
   void _setDragOffset(Offset dragOffset) {
@@ -1302,16 +1298,12 @@ class _ContextMenuRouteStaticState extends State<_ContextMenuRouteStatic> with T
       ),
     );
 
-    switch (contextMenuLocation) {
-      case _ContextMenuLocation.center:
-        return <Widget>[child, spacer, sheet];
-      case _ContextMenuLocation.right:
-        return orientation == Orientation.portrait
-          ? <Widget>[child, spacer, sheet]
-          : <Widget>[sheet, spacer, child];
-      case _ContextMenuLocation.left:
-        return <Widget>[child, spacer, sheet];
-    }
+    return switch (contextMenuLocation) {
+      _ContextMenuLocation.right when orientation == Orientation.portrait => <Widget>[child, spacer, sheet],
+      _ContextMenuLocation.right  => <Widget>[sheet, spacer, child],
+      _ContextMenuLocation.center => <Widget>[child, spacer, sheet],
+      _ContextMenuLocation.left   => <Widget>[child, spacer, sheet],
+    };
   }
 
   // Build the animation for the _ContextMenuSheet.
@@ -1448,7 +1440,7 @@ class _ContextMenuSheet extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: <Widget>[
               actions.first,
-              for (Widget action in actions.skip(1))
+              for (final Widget action in actions.skip(1))
                 DecoratedBox(
                   decoration: BoxDecoration(
                     border: Border(
@@ -1470,29 +1462,12 @@ class _ContextMenuSheet extends StatelessWidget {
       ),
     );
 
-    switch (_contextMenuLocation) {
-      case _ContextMenuLocation.center:
-        return _orientation == Orientation.portrait
-          ? <Widget>[
-            const Spacer(),
-            menu,
-            const Spacer(),
-          ]
-        : <Widget>[
-            menu,
-            const Spacer(),
-          ];
-      case _ContextMenuLocation.right:
-        return <Widget>[
-          const Spacer(),
-          menu,
-        ];
-      case _ContextMenuLocation.left:
-        return <Widget>[
-          menu,
-          const Spacer(),
-        ];
-    }
+    return switch (_contextMenuLocation) {
+      _ContextMenuLocation.center when _orientation == Orientation.portrait => <Widget>[const Spacer(), menu, const Spacer()],
+      _ContextMenuLocation.center => <Widget>[menu, const Spacer()],
+      _ContextMenuLocation.right  => <Widget>[const Spacer(), menu],
+      _ContextMenuLocation.left   => <Widget>[menu, const Spacer()],
+    };
   }
 
   @override

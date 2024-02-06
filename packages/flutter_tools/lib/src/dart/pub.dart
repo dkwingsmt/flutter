@@ -150,7 +150,7 @@ abstract class Pub {
     String? flutterRootOverride,
     bool checkUpToDate = false,
     bool shouldSkipThirdPartyGenerator = true,
-    PubOutputMode outputMode = PubOutputMode.all
+    PubOutputMode outputMode = PubOutputMode.all,
   });
 
   /// Runs pub in 'batch' mode.
@@ -255,7 +255,7 @@ class _DefaultPub implements Pub {
     String? flutterRootOverride,
     bool checkUpToDate = false,
     bool shouldSkipThirdPartyGenerator = true,
-    PubOutputMode outputMode = PubOutputMode.all
+    PubOutputMode outputMode = PubOutputMode.all,
   }) async {
     final String directory = project.directory.path;
     final File packageConfigFile = project.packageConfigFile;
@@ -630,7 +630,7 @@ class _DefaultPub implements Pub {
         _logger.printStatus('''
 Found an existing Pub cache at $pubCachePath.
 It can be repaired by running `dart pub cache repair`.
-It can be reset by running `dart pub cache clear`.''');
+It can be reset by running `dart pub cache clean`.''');
       }
     }
     final String? home = _platform.environment['HOME'];

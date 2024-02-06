@@ -10,7 +10,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import '../rendering/mock_canvas.dart';
 import '../widgets/semantics_tester.dart';
 import 'feedback_tester.dart';
 
@@ -200,7 +199,7 @@ void main() {
     expect(cancels, equals(2));
   });
 
-  testWidgets('disabled PopupMenuButton will not call itemBuilder, onOpened, onSelected or onCanceled', (WidgetTester tester) async {
+  testWidgets('Disabled PopupMenuButton will not call itemBuilder, onOpened, onSelected or onCanceled', (WidgetTester tester) async {
     final GlobalKey popupButtonKey = GlobalKey();
     bool itemBuilderCalled = false;
     bool onOpenedCalled = false;
@@ -327,7 +326,7 @@ void main() {
     expect(onSelectedCalled, isFalse);
   });
 
-  testWidgets('disabled PopupMenuButton is focusable with directional navigation', (WidgetTester tester) async {
+  testWidgets('Disabled PopupMenuButton is focusable with directional navigation', (WidgetTester tester) async {
     final Key popupButtonKey = UniqueKey();
     final GlobalKey childKey = GlobalKey();
 
@@ -844,6 +843,8 @@ void main() {
 
   testWidgets('PopupMenu positioning inside nested Overlay', (WidgetTester tester) async {
     final Key buttonKey = UniqueKey();
+    late final OverlayEntry entry;
+    addTearDown(() => entry..remove()..dispose());
 
     await tester.pumpWidget(
       MaterialApp(
@@ -853,7 +854,7 @@ void main() {
             padding: const EdgeInsets.all(8.0),
             child: Overlay(
               initialEntries: <OverlayEntry>[
-                OverlayEntry(
+                entry = OverlayEntry(
                   builder: (_) => Center(
                     child: PopupMenuButton<int>(
                       key: buttonKey,
@@ -1085,7 +1086,7 @@ void main() {
     expect(tester.getTopLeft(find.byWidgetPredicate((Widget w) => '${w.runtimeType}' == '_PopupMenu<int?>')), const Offset(50.0, 50.0));
   });
 
-  testWidgets('open PopupMenu has correct semantics', (WidgetTester tester) async {
+  testWidgets('Opened PopupMenu has correct semantics', (WidgetTester tester) async {
     final SemanticsTester semantics = SemanticsTester(tester);
     await tester.pumpWidget(
       MaterialApp(
@@ -1196,7 +1197,7 @@ void main() {
               ),
               TestSemantics(
                   actions: <SemanticsAction>[SemanticsAction.tap, SemanticsAction.dismiss],
-                  label: 'Dismiss',
+                  label: 'Dismiss menu',
                   textDirection: TextDirection.ltr,
               ),
             ],
@@ -1284,7 +1285,7 @@ void main() {
               ),
               TestSemantics(
                   actions: <SemanticsAction>[SemanticsAction.tap, SemanticsAction.dismiss],
-                  label: 'Dismiss',
+                  label: 'Dismiss menu',
                   textDirection: TextDirection.ltr,
               ),
             ],
@@ -1297,7 +1298,7 @@ void main() {
     semantics.dispose();
   });
 
-  testWidgets('disabled PopupMenuItem has correct semantics', (WidgetTester tester) async {
+  testWidgets('Disabled PopupMenuItem has correct semantics', (WidgetTester tester) async {
     // Regression test for https://github.com/flutter/flutter/issues/45044.
     final SemanticsTester semantics = SemanticsTester(tester);
     await tester.pumpWidget(
@@ -1407,7 +1408,7 @@ void main() {
               ),
               TestSemantics(
                   actions: <SemanticsAction>[SemanticsAction.tap, SemanticsAction.dismiss],
-                  label: 'Dismiss',
+                  label: 'Dismiss menu',
                   textDirection: TextDirection.ltr,
               ),
             ],
@@ -1554,12 +1555,89 @@ void main() {
     );
   });
 
+  testWidgets('Material3 - PopupMenuItem default padding', (WidgetTester tester) async {
+    final Key popupMenuButtonKey = UniqueKey();
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ThemeData(useMaterial3: true),
+        home: Scaffold(
+          body: Center(
+            child: PopupMenuButton<String>(
+              key: popupMenuButtonKey,
+              child: const Text('button'),
+              onSelected: (String result) { },
+              itemBuilder: (BuildContext context) {
+                return <PopupMenuEntry<String>>[
+                   const PopupMenuItem<String>(
+                    value: '0',
+                    enabled: false,
+                    child: Text('Item 0'),
+                  ),
+                  const PopupMenuItem<String>(
+                    value: '1',
+                    child: Text('Item 1'),
+                  ),
+                ];
+              },
+            ),
+          ),
+        ),
+      ),
+    );
+
+    // Show the menu.
+    await tester.tap(find.byKey(popupMenuButtonKey));
+    await tester.pumpAndSettle();
+
+    expect(tester.widget<Container>(find.widgetWithText(Container, 'Item 0')).padding, const EdgeInsets.symmetric(horizontal: 12.0));
+    expect(tester.widget<Container>(find.widgetWithText(Container, 'Item 1')).padding, const EdgeInsets.symmetric(horizontal: 12.0));
+  });
+
+  testWidgets('Material2 - PopupMenuItem default padding', (WidgetTester tester) async {
+    final Key popupMenuButtonKey = UniqueKey();
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ThemeData(useMaterial3: false),
+        home: Scaffold(
+          body: Center(
+            child: PopupMenuButton<String>(
+              key: popupMenuButtonKey,
+              child: const Text('button'),
+              onSelected: (String result) { },
+              itemBuilder: (BuildContext context) {
+                return <PopupMenuEntry<String>>[
+                   const PopupMenuItem<String>(
+                    value: '0',
+                    enabled: false,
+                    child: Text('Item 0'),
+                  ),
+                  const PopupMenuItem<String>(
+                    value: '1',
+                    child: Text('Item 1'),
+                  ),
+                ];
+              },
+            ),
+          ),
+        ),
+      ),
+    );
+
+    // Show the menu.
+    await tester.tap(find.byKey(popupMenuButtonKey));
+    await tester.pumpAndSettle();
+
+    expect(tester.widget<Container>(find.widgetWithText(Container, 'Item 0')).padding, const EdgeInsets.symmetric(horizontal: 16.0));
+    expect(tester.widget<Container>(find.widgetWithText(Container, 'Item 1')).padding, const EdgeInsets.symmetric(horizontal: 16.0));
+  });
+
   testWidgets('PopupMenuItem custom padding', (WidgetTester tester) async {
     final Key popupMenuButtonKey = UniqueKey();
     final Type menuItemType = const PopupMenuItem<String>(child: Text('item')).runtimeType;
 
     await tester.pumpWidget(
       MaterialApp(
+        theme: ThemeData(useMaterial3: false),
         home: Scaffold(
           body: Center(
             child: PopupMenuButton<String>(
@@ -1774,6 +1852,7 @@ void main() {
       double fontSize = 24,
     }) {
       return MaterialApp(
+        theme: ThemeData(useMaterial3: false),
         builder: (BuildContext context, Widget? child) {
           return Directionality(
             textDirection: textDirection,
@@ -2363,6 +2442,7 @@ void main() {
 
     Widget buildFrame(double width, double height) {
       return MaterialApp(
+        theme: ThemeData(useMaterial3: false),
         builder: (BuildContext context, Widget? child) {
           return MediaQuery(
             data: const MediaQueryData(
@@ -2422,6 +2502,7 @@ void main() {
 
     Widget buildFrame(double width, double height) {
       return MaterialApp(
+        theme: ThemeData(useMaterial3: false),
         builder: (BuildContext context, Widget? child) {
           return MediaQuery(
             data: const MediaQueryData(
@@ -2573,32 +2654,30 @@ void main() {
     });
   });
 
-  testWidgets('iconSize parameter tests', (WidgetTester tester) async {
-    Future<void> buildFrame({double? iconSize}) {
-      return tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: Center(
-              child: PopupMenuButton<String>(
-                iconSize: iconSize,
-                itemBuilder: (_) => <PopupMenuEntry<String>>[
-                  const PopupMenuItem<String>(
-                    value: 'value',
-                    child: Text('child'),
-                  ),
-                ],
-              ),
+  testWidgets('Can customize PopupMenuButton icon', (WidgetTester tester) async {
+    const Color iconColor = Color(0xffffff00);
+    const double iconSize = 29.5;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: PopupMenuButton<String>(
+              iconColor: iconColor,
+              iconSize: iconSize,
+              itemBuilder: (_) => <PopupMenuEntry<String>>[
+                const PopupMenuItem<String>(
+                  value: 'value',
+                  child: Text('child'),
+                ),
+              ],
             ),
           ),
         ),
-      );
-    }
+      ),
+    );
 
-    await buildFrame();
-    expect(tester.getSize(find.byIcon(Icons.adaptive.more)), const Size(24, 24));
-
-    await buildFrame(iconSize: 50);
-    expect(tester.getSize(find.byIcon(Icons.adaptive.more)), const Size(50, 50));
+    expect(_iconStyle(tester, Icons.adaptive.more)?.color, iconColor);
+    expect(tester.getSize(find.byIcon(Icons.adaptive.more)), const Size(iconSize, iconSize));
   });
 
   testWidgets('does not crash in small overlay', (WidgetTester tester) async {
@@ -2710,6 +2789,7 @@ void main() {
     Future<void> buildFrameWithoutChild({double? splashRadius}) {
       return tester.pumpWidget(
         MaterialApp(
+          theme: ThemeData(useMaterial3: false),
           home: Scaffold(
             body: Center(
               child: PopupMenuButton<String>(
@@ -3260,6 +3340,621 @@ void main() {
     final Offset menuTopLeft = tester.getTopLeft(find.bySemanticsLabel('Popup menu'));
     expect(childBottomLeft, menuTopLeft);
   });
+
+  testWidgets('PopupMenuItem onTap should be calling after Navigator.pop', (WidgetTester tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          appBar: AppBar(
+            actions: <Widget>[
+              PopupMenuButton<int>(
+                itemBuilder: (BuildContext context) => <PopupMenuItem<int>>[
+                  PopupMenuItem<int>(
+                    onTap: () {
+                      showModalBottomSheet<void>(
+                        context: context,
+                        builder: (BuildContext context) {
+                          return const SizedBox(
+                            height: 200.0,
+                            child: Center(child: Text('ModalBottomSheet')),
+                          );
+                        },
+                      );
+                    },
+                    value: 10,
+                    child: const Text('ACTION'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.byType(PopupMenuButton<int>));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('ACTION'));
+    await tester.pumpAndSettle();
+
+    // Verify that the ModalBottomSheet is displayed
+    final Finder modalBottomSheet = find.text('ModalBottomSheet');
+    expect(modalBottomSheet, findsOneWidget);
+  });
+
+  testWidgets('Material3 - CheckedPopupMenuItem.labelTextStyle uses correct text style', (WidgetTester tester) async {
+    final Key popupMenuButtonKey = UniqueKey();
+    ThemeData theme = ThemeData(useMaterial3: true);
+
+    Widget buildMenu() {
+      return  MaterialApp(
+        theme: theme,
+        home: Scaffold(
+          appBar: AppBar(
+            actions: <Widget>[
+              PopupMenuButton<void>(
+                key: popupMenuButtonKey,
+                itemBuilder: (BuildContext context) => <PopupMenuItem<void>>[
+                  const CheckedPopupMenuItem<void>(
+                    child: Text('Item 1'),
+                  ),
+                  const CheckedPopupMenuItem<int>(
+                    checked: true,
+                    child: Text('Item 2'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    await tester.pumpWidget(buildMenu());
+
+    // Show the menu
+    await tester.tap(find.byKey(popupMenuButtonKey));
+    await tester.pumpAndSettle();
+
+    // Test default text style.
+    expect(_labelStyle(tester, 'Item 1')!.fontSize, 14.0);
+    expect(_labelStyle(tester, 'Item 1')!.color, theme.colorScheme.onSurface);
+
+    // Close the menu.
+    await tester.tapAt(const Offset(20.0, 20.0));
+    await tester.pumpAndSettle();
+
+    // Test custom text theme.
+    const TextStyle customTextStyle = TextStyle(
+      fontSize: 20.0,
+      fontWeight: FontWeight.bold,
+      fontStyle: FontStyle.italic,
+    );
+    theme = theme.copyWith(
+      textTheme: const TextTheme(labelLarge: customTextStyle),
+    );
+    await tester.pumpWidget(buildMenu());
+
+    // Show the menu.
+    await tester.tap(find.byKey(popupMenuButtonKey));
+    await tester.pumpAndSettle();
+
+    // Test custom text theme.
+    expect(_labelStyle(tester, 'Item 1')!.fontSize, customTextStyle.fontSize);
+    expect(_labelStyle(tester, 'Item 1')!.fontWeight, customTextStyle.fontWeight);
+    expect(_labelStyle(tester, 'Item 1')!.fontStyle, customTextStyle.fontStyle);
+  });
+
+  testWidgets('CheckedPopupMenuItem.labelTextStyle resolve material states', (WidgetTester tester) async {
+    final Key popupMenuButtonKey = UniqueKey();
+    final MaterialStateProperty<TextStyle?> labelTextStyle = MaterialStateProperty.resolveWith(
+     (Set<MaterialState> states) {
+       if (states.contains(MaterialState.selected)) {
+        return const TextStyle(color: Colors.red, fontSize: 24.0);
+       }
+
+      return const TextStyle(color: Colors.amber, fontSize: 20.0);
+    });
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          appBar: AppBar(
+            actions: <Widget>[
+              PopupMenuButton<void>(
+                key: popupMenuButtonKey,
+                itemBuilder: (BuildContext context) => <PopupMenuItem<void>>[
+                  CheckedPopupMenuItem<void>(
+                    labelTextStyle: labelTextStyle,
+                    child: const Text('Item 1'),
+                  ),
+                  CheckedPopupMenuItem<int>(
+                    checked: true,
+                    labelTextStyle: labelTextStyle,
+                    child: const Text('Item 2'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    // Show the menu.
+    await tester.tap(find.byKey(popupMenuButtonKey));
+    await tester.pumpAndSettle();
+
+    expect(
+      _labelStyle(tester, 'Item 1'),
+      labelTextStyle.resolve(<MaterialState>{})
+    );
+    expect(
+      _labelStyle(tester, 'Item 2'),
+      labelTextStyle.resolve(<MaterialState>{MaterialState.selected})
+    );
+  });
+
+  testWidgets('CheckedPopupMenuItem overrides redundant ListTile.contentPadding', (WidgetTester tester) async {
+    final Key popupMenuButtonKey = UniqueKey();
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ThemeData(useMaterial3: false),
+        home: Scaffold(
+          body: Center(
+            child: PopupMenuButton<String>(
+              key: popupMenuButtonKey,
+              child: const Text('button'),
+              onSelected: (String result) { },
+              itemBuilder: (BuildContext context) {
+                return <PopupMenuEntry<String>>[
+                   const CheckedPopupMenuItem<String>(
+                    value: '0',
+                    child: Text('Item 0'),
+                  ),
+                  const CheckedPopupMenuItem<String>(
+                    value: '1',
+                    checked: true,
+                    child: Text('Item 1'),
+                  ),
+                ];
+              },
+            ),
+          ),
+        ),
+      ),
+    );
+
+    // Show the menu.
+    await tester.tap(find.byKey(popupMenuButtonKey));
+    await tester.pumpAndSettle();
+
+    SafeArea getItemSafeArea(String label) {
+      return tester.widget<SafeArea>(find.ancestor(
+        of: find.text(label),
+        matching: find.byType(SafeArea),
+      ));
+    }
+
+    expect(getItemSafeArea('Item 0').minimum, EdgeInsets.zero);
+    expect(getItemSafeArea('Item 1').minimum, EdgeInsets.zero);
+  });
+
+  testWidgets('PopupMenuItem overrides redundant ListTile.contentPadding', (WidgetTester tester) async {
+    final Key popupMenuButtonKey = UniqueKey();
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ThemeData(useMaterial3: false),
+        home: Scaffold(
+          body: Center(
+            child: PopupMenuButton<String>(
+              key: popupMenuButtonKey,
+              child: const Text('button'),
+              onSelected: (String result) { },
+              itemBuilder: (BuildContext context) {
+                return <PopupMenuEntry<String>>[
+                   const PopupMenuItem<String>(
+                    value: '0',
+                    enabled: false,
+                    child: ListTile(title: Text('Item 0')),
+                  ),
+                  const PopupMenuItem<String>(
+                    value: '1',
+                    child: ListTile(title: Text('Item 1')),
+                  ),
+                ];
+              },
+            ),
+          ),
+        ),
+      ),
+    );
+
+    // Show the menu.
+    await tester.tap(find.byKey(popupMenuButtonKey));
+    await tester.pumpAndSettle();
+
+    SafeArea getItemSafeArea(String label) {
+      return tester.widget<SafeArea>(find.ancestor(
+        of: find.text(label),
+        matching: find.byType(SafeArea),
+      ));
+    }
+
+    expect(getItemSafeArea('Item 0').minimum, EdgeInsets.zero);
+    expect(getItemSafeArea('Item 1').minimum, EdgeInsets.zero);
+  });
+
+  testWidgets('Material3 - PopupMenuItem overrides ListTile.titleTextStyle', (WidgetTester tester) async {
+    final Key popupMenuButtonKey = UniqueKey();
+    ThemeData theme = ThemeData(useMaterial3: true);
+
+    Widget buildMenu() {
+      return MaterialApp(
+        theme: theme,
+        home: Scaffold(
+          body: Center(
+            child: PopupMenuButton<String>(
+              key: popupMenuButtonKey,
+              child: const Text('button'),
+              onSelected: (String result) { },
+              itemBuilder: (BuildContext context) {
+                return <PopupMenuEntry<String>>[
+                   // Popup menu item with a Text widget.
+                   const PopupMenuItem<String>(
+                    value: '0',
+                    child: Text('Item 0'),
+                  ),
+                  // Popup menu item with a ListTile widget.
+                  const PopupMenuItem<String>(
+                    value: '1',
+                    child: ListTile(title: Text('Item 1')),
+                  ),
+                ];
+              },
+            ),
+          ),
+        ),
+      );
+    }
+
+    await tester.pumpWidget(buildMenu());
+
+    // Show the menu.
+    await tester.tap(find.byKey(popupMenuButtonKey));
+    await tester.pumpAndSettle();
+
+    // Test popup menu item with a Text widget.
+    expect(_labelStyle(tester, 'Item 0')!.fontSize, 14.0);
+    expect(_labelStyle(tester, 'Item 0')!.color, theme.colorScheme.onSurface);
+
+    // Test popup menu item with a ListTile widget.
+    expect(_labelStyle(tester, 'Item 1')!.fontSize, 14.0);
+    expect(_labelStyle(tester, 'Item 1')!.color, theme.colorScheme.onSurface);
+
+    // Close the menu.
+    await tester.tapAt(const Offset(20.0, 20.0));
+    await tester.pumpAndSettle();
+
+    // Test custom text theme.
+    const TextStyle customTextStyle = TextStyle(
+      fontSize: 20.0,
+      fontWeight: FontWeight.bold,
+      fontStyle: FontStyle.italic,
+    );
+    theme = theme.copyWith(
+      textTheme: const TextTheme(labelLarge: customTextStyle),
+    );
+    await tester.pumpWidget(buildMenu());
+
+    // Show the menu.
+    await tester.tap(find.byKey(popupMenuButtonKey));
+    await tester.pumpAndSettle();
+
+    // Test popup menu item with a Text widget with custom text theme.
+    expect(_labelStyle(tester, 'Item 0')!.fontSize, customTextStyle.fontSize);
+    expect(_labelStyle(tester, 'Item 0')!.fontWeight, customTextStyle.fontWeight);
+    expect(_labelStyle(tester, 'Item 0')!.fontStyle, customTextStyle.fontStyle);
+
+    // Test popup menu item with a ListTile widget with custom text theme.
+    expect(_labelStyle(tester, 'Item 1')!.fontSize, customTextStyle.fontSize);
+    expect(_labelStyle(tester, 'Item 1')!.fontWeight, customTextStyle.fontWeight);
+    expect(_labelStyle(tester, 'Item 1')!.fontStyle, customTextStyle.fontStyle);
+  });
+
+  testWidgets('Material2 - PopupMenuItem overrides ListTile.titleTextStyle', (WidgetTester tester) async {
+    final Key popupMenuButtonKey = UniqueKey();
+    ThemeData theme = ThemeData(useMaterial3: false);
+
+    Widget buildMenu() {
+      return MaterialApp(
+        theme: theme,
+        home: Scaffold(
+          body: Center(
+            child: PopupMenuButton<String>(
+              key: popupMenuButtonKey,
+              child: const Text('button'),
+              onSelected: (String result) { },
+              itemBuilder: (BuildContext context) {
+                return <PopupMenuEntry<String>>[
+                   // Popup menu item with a Text widget.
+                   const PopupMenuItem<String>(
+                    value: '0',
+                    child: Text('Item 0'),
+                  ),
+                  // Popup menu item with a ListTile widget.
+                  const PopupMenuItem<String>(
+                    value: '1',
+                    child: ListTile(title: Text('Item 1')),
+                  ),
+                ];
+              },
+            ),
+          ),
+        ),
+      );
+    }
+
+    await tester.pumpWidget(buildMenu());
+
+    // Show the menu.
+    await tester.tap(find.byKey(popupMenuButtonKey));
+    await tester.pumpAndSettle();
+
+    // Test popup menu item with a Text widget.
+    expect(_labelStyle(tester, 'Item 0')!.fontSize, 16.0);
+    expect(_labelStyle(tester, 'Item 0')!.color, theme.textTheme.subtitle1!.color);
+
+    // Test popup menu item with a ListTile widget.
+    expect(_labelStyle(tester, 'Item 1')!.fontSize, 16.0);
+    expect(_labelStyle(tester, 'Item 1')!.color, theme.textTheme.subtitle1!.color);
+
+    // Close the menu.
+    await tester.tapAt(const Offset(20.0, 20.0));
+    await tester.pumpAndSettle();
+
+    // Test custom text theme.
+    const TextStyle customTextStyle = TextStyle(
+      fontSize: 20.0,
+      fontWeight: FontWeight.bold,
+      fontStyle: FontStyle.italic,
+    );
+    theme = theme.copyWith(
+      textTheme: const TextTheme(subtitle1: customTextStyle),
+    );
+    await tester.pumpWidget(buildMenu());
+
+    // Show the menu.
+    await tester.tap(find.byKey(popupMenuButtonKey));
+    await tester.pumpAndSettle();
+
+    // Test popup menu item with a Text widget with custom text style.
+    expect(_labelStyle(tester, 'Item 0')!.fontSize, customTextStyle.fontSize);
+    expect(_labelStyle(tester, 'Item 0')!.fontWeight, customTextStyle.fontWeight);
+    expect(_labelStyle(tester, 'Item 0')!.fontStyle, customTextStyle.fontStyle);
+
+    // Test popup menu item with a ListTile widget with custom text style.
+    expect(_labelStyle(tester, 'Item 1')!.fontSize, customTextStyle.fontSize);
+    expect(_labelStyle(tester, 'Item 1')!.fontWeight, customTextStyle.fontWeight);
+    expect(_labelStyle(tester, 'Item 1')!.fontStyle, customTextStyle.fontStyle);
+  });
+
+  testWidgets('CheckedPopupMenuItem.onTap callback is called when defined', (WidgetTester tester) async {
+    int count = 0;
+    await tester.pumpWidget(
+      TestApp(
+        textDirection: TextDirection.ltr,
+        child: Material(
+          child: RepaintBoundary(
+            child: PopupMenuButton<String>(
+              child: const Text('button'),
+              itemBuilder: (BuildContext context) {
+                  return  <PopupMenuItem<String>>[
+                  CheckedPopupMenuItem<String>(
+                    onTap: () {
+                      count += 1;
+                    },
+                    value: 'item1',
+                    child: const Text('Item with onTap'),
+                  ),
+                  const CheckedPopupMenuItem<String>(
+                    value: 'item2',
+                    child: Text('Item without onTap'),
+                  ),
+                ];
+              },
+            ),
+          ),
+        ),
+      ),
+    );
+
+    // Tap a checked menu item with onTap.
+    await tester.tap(find.text('button'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(CheckedPopupMenuItem<String>, 'Item with onTap'));
+    await tester.pumpAndSettle();
+    expect(count, 1);
+
+    // Tap a checked menu item without onTap.
+    await tester.tap(find.text('button'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(CheckedPopupMenuItem<String>, 'Item without onTap'));
+    await tester.pumpAndSettle();
+    expect(count, 1);
+  });
+
+  testWidgets('PopupMenuButton uses root navigator if useRootNavigator is true', (WidgetTester tester) async {
+    final MenuObserver rootObserver = MenuObserver();
+    final MenuObserver nestedObserver = MenuObserver();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        navigatorObservers: <NavigatorObserver>[rootObserver],
+        home: Navigator(
+          observers: <NavigatorObserver>[nestedObserver],
+          onGenerateRoute: (RouteSettings settings) {
+            return MaterialPageRoute<dynamic>(
+              builder: (BuildContext context) {
+                return Material(
+                  child: PopupMenuButton<String>(
+                    useRootNavigator: true,
+                    child: const Text('button'),
+                    itemBuilder: (BuildContext context) {
+                      return <PopupMenuItem<String>>[
+                        const CheckedPopupMenuItem<String>(
+                          value: 'item1',
+                          child: Text('item 1'),
+                        ),
+                        const CheckedPopupMenuItem<String>(
+                          value: 'item2',
+                          child: Text('item 2'),
+                        ),
+                      ];
+                    },
+                  ),
+                );
+              },
+            );
+          },
+        ),
+      ),
+    );
+
+    // Open the dialog.
+    await tester.tap(find.text('button'));
+
+    expect(rootObserver.menuCount, 1);
+    expect(nestedObserver.menuCount, 0);
+  });
+
+  testWidgets('PopupMenuButton does not use root navigator if useRootNavigator is false', (WidgetTester tester) async {
+    final MenuObserver rootObserver = MenuObserver();
+    final MenuObserver nestedObserver = MenuObserver();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        navigatorObservers: <NavigatorObserver>[rootObserver],
+        home: Navigator(
+          observers: <NavigatorObserver>[nestedObserver],
+          onGenerateRoute: (RouteSettings settings) {
+            return MaterialPageRoute<dynamic>(
+              builder: (BuildContext context) {
+                return Material(
+                  child: PopupMenuButton<String>(
+                    child: const Text('button'),
+                    itemBuilder: (BuildContext context) {
+                      return <PopupMenuItem<String>>[
+                        const CheckedPopupMenuItem<String>(
+                          value: 'item1',
+                          child: Text('item 1'),
+                        ),
+                        const CheckedPopupMenuItem<String>(
+                          value: 'item2',
+                          child: Text('item 2'),
+                        ),
+                      ];
+                    },
+                  ),
+                );
+              },
+            );
+          },
+        ),
+      ),
+    );
+
+    // Open the dialog.
+    await tester.tap(find.text('button'));
+
+    expect(rootObserver.menuCount, 0);
+    expect(nestedObserver.menuCount, 1);
+  });
+
+  testWidgets('Override Popup Menu animation using AnimationStyle', (WidgetTester tester) async {
+    final Key targetKey = UniqueKey();
+
+    Widget buildPopupMenu({ AnimationStyle? animationStyle }) {
+      return MaterialApp(
+        home: Material(
+          child: Center(
+            child: PopupMenuButton<int>(
+              key: targetKey,
+              popUpAnimationStyle: animationStyle,
+              itemBuilder: (BuildContext context) {
+                return <PopupMenuItem<int>>[
+                  const PopupMenuItem<int>(
+                    value: 1,
+                    child: Text('One'),
+                  ),
+                  const PopupMenuItem<int>(
+                    value: 2,
+                    child: Text('Two'),
+                  ),
+                  const PopupMenuItem<int>(
+                    value: 3,
+                    child: Text('Three'),
+                  ),
+                ];
+              },
+            ),
+          ),
+        ),
+      );
+    }
+
+    // Test default animation.
+    await tester.pumpWidget(buildPopupMenu());
+
+    await tester.tap(find.byKey(targetKey));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100)); // Advance the animation by 1/3 of its duration.
+
+    expect(tester.getSize(find.byType(Material).last), within(distance: 0.1, from: const Size(112.0, 80.0)));
+
+    await tester.pump(const Duration(milliseconds: 100)); // Advance the animation by 2/3 of its duration.
+
+    expect(tester.getSize(find.byType(Material).last), within(distance: 0.1, from: const Size(112.0, 160.0)));
+
+    await tester.pumpAndSettle(); // Advance the animation to the end.
+
+    expect(tester.getSize(find.byType(Material).last), within(distance: 0.1, from: const Size(112.0, 160.0)));
+
+    // Tap outside to dismiss the menu.
+    await tester.tapAt(const Offset(20.0, 20.0));
+    await tester.pumpAndSettle();
+
+    // Override the animation duration.
+    await tester.pumpWidget(buildPopupMenu(animationStyle: AnimationStyle(duration: Duration.zero)));
+
+    await tester.tap(find.byKey(targetKey));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 1)); // Advance the animation by 1 millisecond.
+
+    expect(tester.getSize(find.byType(Material).last), within(distance: 0.1, from: const Size(112.0, 160.0)));
+
+    // Tap outside to dismiss the menu.
+    await tester.tapAt(const Offset(20.0, 20.0));
+    await tester.pumpAndSettle();
+
+    // Override the animation curve.
+    await tester.pumpWidget(buildPopupMenu(animationStyle: AnimationStyle(curve: Easing.emphasizedAccelerate)));
+
+    await tester.tap(find.byKey(targetKey));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100)); // Advance the animation by 1/3 of its duration.
+
+    expect(tester.getSize(find.byType(Material).last), within(distance: 0.1, from: const Size(32.4, 15.4)));
+
+    await tester.pump(const Duration(milliseconds: 100)); // Advance the animation by 2/3 of its duration.
+
+    expect(tester.getSize(find.byType(Material).last), within(distance: 0.1, from: const Size(112.0, 72.2)));
+
+    await tester.pumpAndSettle(); // Advance the animation to the end.
+
+    expect(tester.getSize(find.byType(Material).last), within(distance: 0.1, from: const Size(112.0, 160.0)));
+  });
 }
 
 class TestApp extends StatelessWidget {
@@ -3329,4 +4024,18 @@ class _ClosureNavigatorObserver extends NavigatorObserver {
 
   @override
   void didReplace({Route<dynamic>? newRoute, Route<dynamic>? oldRoute}) => onDidChange(newRoute!);
+}
+
+TextStyle? _labelStyle(WidgetTester tester, String label) {
+  return tester.widget<RichText>(find.descendant(
+    of: find.text(label),
+    matching: find.byType(RichText),
+  )).text.style;
+}
+
+TextStyle? _iconStyle(WidgetTester tester, IconData icon) {
+  return tester.widget<RichText>(find.descendant(
+    of: find.byIcon(icon),
+    matching: find.byType(RichText),
+  )).text.style;
 }

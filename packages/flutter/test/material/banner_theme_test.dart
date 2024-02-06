@@ -66,7 +66,7 @@ void main() {
     ]);
   });
 
-  testWidgets('Passing no MaterialBannerThemeData returns defaults', (WidgetTester tester) async {
+  testWidgets('Material3 - Passing no MaterialBannerThemeData returns defaults', (WidgetTester tester) async {
     const String contentText = 'Content';
     final ThemeData theme = ThemeData(useMaterial3: true);
     late final ThemeData localizedTheme;
@@ -115,7 +115,7 @@ void main() {
     expect(divider.color, theme.colorScheme.outlineVariant);
   });
 
-  testWidgets('Passing no MaterialBannerThemeData returns defaults when presented by ScaffoldMessenger', (WidgetTester tester) async {
+  testWidgets('Material3 - Passing no MaterialBannerThemeData returns defaults when presented by ScaffoldMessenger', (WidgetTester tester) async {
     const String contentText = 'Content';
     const Key tapTarget = Key('tap-target');
     final ThemeData theme = ThemeData(useMaterial3: true);
@@ -449,13 +449,15 @@ void main() {
   });
 
   group('Material 2', () {
-    // Tests that are only relevant for Material 2. Once ThemeData.useMaterial3
-    // is turned on by default, these tests can be removed.
+    // These tests are only relevant for Material 2. Once Material 2
+    // support is deprecated and the APIs are removed, these tests
+    // can be deleted.
 
-    testWidgets('Passing no MaterialBannerThemeData returns defaults', (WidgetTester tester) async {
+    testWidgets('Material2 - Passing no MaterialBannerThemeData returns defaults', (WidgetTester tester) async {
       const String contentText = 'Content';
 
       await tester.pumpWidget(MaterialApp(
+        theme: ThemeData(useMaterial3: false),
         home: Scaffold(
           body: MaterialBanner(
             content: const Text(contentText),
@@ -497,11 +499,12 @@ void main() {
       expect(divider.color, null);
     });
 
-    testWidgets('Passing no MaterialBannerThemeData returns defaults when presented by ScaffoldMessenger', (WidgetTester tester) async {
+    testWidgets('Material2 - Passing no MaterialBannerThemeData returns defaults when presented by ScaffoldMessenger', (WidgetTester tester) async {
       const String contentText = 'Content';
       const Key tapTarget = Key('tap-target');
 
       await tester.pumpWidget(MaterialApp(
+        theme: ThemeData(useMaterial3: false),
         home: Scaffold(
           body: Builder(
             builder: (BuildContext context) {
