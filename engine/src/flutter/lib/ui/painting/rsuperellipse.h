@@ -27,6 +27,8 @@ class RSuperellipse : public RefCountedDartWrappable<RSuperellipse> {
   ~RSuperellipse() override;
 
   double getValue(int index) const;
+  flutter::DlRect getBounds() const;
+  impeller::RoundingRadii getRadii() const;
   bool contains(double x, double y) const;
   flutter::DlRoundSuperellipse rsuperellipse() const;
 
@@ -36,8 +38,6 @@ class RSuperellipse : public RefCountedDartWrappable<RSuperellipse> {
   explicit RSuperellipse(const tonic::Float64List& values);
 
   impeller::Scalar value32(int index) const;
-  flutter::DlRect bounds() const;
-  impeller::RoundingRadii radii() const;
   const impeller::RoundSuperellipseParam& param() const;
 
   std::array<double, kValueCount> values_;

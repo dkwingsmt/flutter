@@ -22,7 +22,7 @@ RSuperellipse::RSuperellipse(const tonic::Float64List& values) {
 RSuperellipse::~RSuperellipse() = default;
 
 flutter::DlRoundSuperellipse RSuperellipse::rsuperellipse() const {
-  return flutter::DlRoundSuperellipse::MakeRectRadii(bounds(), radii());
+  return flutter::DlRoundSuperellipse::MakeRectRadii(getBounds(), getRadii());
 }
 
 double RSuperellipse::getValue(int index) const {
@@ -41,7 +41,7 @@ impeller::Scalar RSuperellipse::value32(int index) const {
   return static_cast<Scalar>(getValue(index));
 }
 
-flutter::DlRect RSuperellipse::bounds() const {
+flutter::DlRect RSuperellipse::getBounds() const {
   // The Flutter rect may be inverted (upside down, backward, or both)
   // Historically, Skia would normalize such rects but we will do that
   // manually below when we construct the Impeller RoundRect
@@ -50,7 +50,7 @@ flutter::DlRect RSuperellipse::bounds() const {
   return raw_rect.GetPositive();
 }
 
-impeller::RoundingRadii RSuperellipse::radii() const {
+impeller::RoundingRadii RSuperellipse::getRadii() const {
   // Flutter has radii in TL,TR,BR,BL (clockwise) order,
   // but Impeller uses TL,TR,BL,BR (zig-zag) order
   return impeller::RoundingRadii{
@@ -63,8 +63,8 @@ impeller::RoundingRadii RSuperellipse::radii() const {
 
 const impeller::RoundSuperellipseParam& RSuperellipse::param() const {
   if (!cached_param_.has_value()) {
-    cached_param_ =
-        impeller::RoundSuperellipseParam::MakeBoundsRadii(bounds(), radii());
+    cached_param_ = impeller::RoundSuperellipseParam::MakeBoundsRadii(
+        getBounds(), getRadii());
   }
   return cached_param_.value();
 }

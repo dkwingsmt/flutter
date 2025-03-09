@@ -15,6 +15,15 @@ namespace impeller {
 // A utility struct that expands input parameters for a rounded superellipse to
 // drawing variables.
 struct RoundSuperellipseParam {
+  class PathBuilderDelegate {
+   public:
+    ~PathBuilderDelegate() = default;
+    virtual void MoveTo(const Point&) = 0;
+    virtual void CubicCurveTo(const Point&, const Point&, const Point&) = 0;
+    virtual void LineTo(const Point&) = 0;
+    virtual void Close() = 0;
+  };
+
   // Parameters for drawing a square-like rounded superellipse.
   //
   // This structure is used to define an octant of an arbitrary rounded
@@ -104,6 +113,8 @@ struct RoundSuperellipseParam {
   // This method does not perform any prescreening such as comparing the point
   // with the bounds, which is recommended for callers.
   bool Contains(const Point& point) const;
+
+  void AddPath(PathBuilderDelegate& builder) const;
 
   // A factor used to calculate the "gap", defined as the distance from the
   // midpoint of the curved corners to the nearest sides of the bounding box.

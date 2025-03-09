@@ -6,6 +6,7 @@
 
 #include <cmath>
 
+#include "flutter/impeller/geometry/round_superellipse_param.h"
 #include "flutter/lib/ui/floating_point.h"
 #include "flutter/lib/ui/painting/matrix.h"
 #include "flutter/lib/ui/ui_dart_state.h"
@@ -21,6 +22,36 @@ namespace flutter {
 typedef CanvasPath Path;
 
 IMPLEMENT_WRAPPERTYPEINFO(ui, Path);
+
+namespace {
+
+class RsePathBuilderSkiaDelegate
+    : public impeller::RoundSuperellipseParam::PathBuilderDelegate {
+ public:
+  RsePathBuilderSkiaDelegate(SkPath& builder) : builder_(builder) {}
+
+  void MoveTo(const DlPoint& p) override {
+    builder_.moveTo(SafeNarrow(p.x), SafeNarrow(p.y));
+  }
+
+  void CubicCurveTo(const DlPoint& p2,
+                    const DlPoint& p3,
+                    const DlPoint& p4) override {
+    builder_.cubicTo(SafeNarrow(p2.x), SafeNarrow(p2.y), SafeNarrow(p3.x),
+                     SafeNarrow(p3.y), SafeNarrow(p4.x), SafeNarrow(p4.y));
+  }
+
+  void LineTo(const DlPoint& p) override {
+    builder_.lineTo(SafeNarrow(p.x), SafeNarrow(p.y));
+  }
+
+  void Close() override { builder_.close(); }
+
+ private:
+  SkPath& builder_;
+};
+
+}  // namespace
 
 CanvasPath::CanvasPath() {
   sk_path_.setIsVolatile(
@@ -199,6 +230,22 @@ void CanvasPath::addPolygon(const tonic::Float32List& points, bool close) {
 
 void CanvasPath::addRRect(const RRect& rrect) {
   sk_path_.addRRect(ToSkRRect(rrect.rrect));
+  resetVolatility();
+}
+
+void CanvasPath::addRSuperellipse(const RSuperellipse* rse) {
+  // if (rse->IsRect()) {
+  //   return addRect(rse.GetBounds());
+  // }
+  // if (rse->IsOval()) {
+  //   return addOval(rse.GetBounds());
+  // }
+
+  RsePathBuilderSkiaDelegate delegate(sk_path_);
+  auto param = impeller::RoundSuperellipseParam::MakeBoundsRadii(
+      rse->getBounds(), rse->getRadii());
+  param.AddPath(delegate);
+
   resetVolatility();
 }
 
