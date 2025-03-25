@@ -345,7 +345,7 @@ abstract class SceneBuilder {
   /// See [pop] for details about the operation stack, and [Clip] for different clip modes.
   /// By default, the clip will be anti-aliased (clip = [Clip.antiAlias]).
   ClipRSuperellipseEngineLayer pushClipRSuperellipse(
-    RSuperellipse rse, {
+    RSuperellipse rsuperellipse, {
     Clip clipBehavior = Clip.antiAlias,
     ClipRSuperellipseEngineLayer? oldLayer,
   });
@@ -747,7 +747,7 @@ base class _NativeSceneBuilder extends NativeFieldWrapperClass1 implements Scene
 
   @override
   ClipRSuperellipseEngineLayer pushClipRSuperellipse(
-    RSuperellipse rse, {
+    RSuperellipse rsuperellipse, {
     Clip clipBehavior = Clip.antiAlias,
     ClipRSuperellipseEngineLayer? oldLayer,
   }) {
@@ -756,7 +756,7 @@ base class _NativeSceneBuilder extends NativeFieldWrapperClass1 implements Scene
     final EngineLayer engineLayer = _NativeEngineLayer._();
     _pushClipRSuperellipse(
       engineLayer,
-      rse.computed() as _ComputedRSuperellipse,
+      rsuperellipse._native(),
       clipBehavior.index,
       oldLayer?._nativeLayer,
     );
@@ -770,7 +770,7 @@ base class _NativeSceneBuilder extends NativeFieldWrapperClass1 implements Scene
   )
   external void _pushClipRSuperellipse(
     EngineLayer layer,
-    _ComputedRSuperellipse rse,
+    _NativeRSuperellipse rsuperellipseParam,
     int clipBehavior,
     EngineLayer? oldLayer,
   );

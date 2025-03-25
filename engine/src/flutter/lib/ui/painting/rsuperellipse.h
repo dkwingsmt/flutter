@@ -18,30 +18,33 @@ class RSuperellipse : public RefCountedDartWrappable<RSuperellipse> {
   FML_FRIEND_MAKE_REF_COUNTED(RSuperellipse);
 
  public:
-  static void Create(Dart_Handle wrapper, const tonic::Float64List& values) {
-    UIDartState::ThrowIfUIOperationsProhibited();
-    auto res = fml::MakeRefCounted<RSuperellipse>(values);
-    res->AssociateWithDartWrapper(wrapper);
-  }
+  static void Create(Dart_Handle wrapper,
+                     double left,
+                     double top,
+                     double right,
+                     double bottom,
+                     double tl_radius_x,
+                     double tl_radius_y,
+                     double tr_radius_x,
+                     double tr_radius_y,
+                     double br_radius_x,
+                     double br_radius_y,
+                     double bl_radius_x,
+                     double bl_radius_y);
 
   ~RSuperellipse() override;
 
-  double getValue(int index) const;
-  flutter::DlRect getBounds() const;
-  impeller::RoundingRadii getRadii() const;
-  bool contains(double x, double y) const;
+  bool contains(double x, double y);
   flutter::DlRoundSuperellipse rsuperellipse() const;
+  impeller::RoundSuperellipseParam param() const;
 
  private:
-  static constexpr int kValueCount = 12;
+  RSuperellipse(flutter::DlRect bounds, impeller::RoundingRadii radii);
 
-  explicit RSuperellipse(const tonic::Float64List& values);
+  flutter::DlScalar scalar_value(int index) const;
 
-  impeller::Scalar value32(int index) const;
-  const impeller::RoundSuperellipseParam& param() const;
-
-  std::array<double, kValueCount> values_;
-  mutable std::optional<impeller::RoundSuperellipseParam> cached_param_;
+  flutter::DlRect bounds_;
+  impeller::RoundingRadii radii_;
 };
 
 }  // namespace flutter
