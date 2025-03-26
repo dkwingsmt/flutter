@@ -235,15 +235,15 @@ void CanvasPath::addRRect(const RRect& rrect) {
 
 void CanvasPath::addRSuperellipse(const RSuperellipse* rse) {
   // if (rse->IsRect()) {
-  //   return addRect(rse.GetBounds());
+  //   return addRect(rse->bounds());
   // }
   // if (rse->IsOval()) {
-  //   return addOval(rse.GetBounds());
+  //   return addOval(rse->bounds());
   // }
 
   RsePathBuilderSkiaDelegate delegate(sk_path_);
-  auto param = impeller::RoundSuperellipseParam::MakeBoundsRadii(
-      rse->getBounds(), rse->getRadii());
+  auto param = impeller::RoundSuperellipseParam::MakeBoundsRadii(rse->bounds(),
+                                                                 rse->radii());
   param.AddPath(delegate);
 
   resetVolatility();

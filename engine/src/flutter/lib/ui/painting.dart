@@ -3376,13 +3376,13 @@ base class _NativePath extends NativeFieldWrapperClass1 implements Path {
   external void _addRRect(Float32List rrect);
 
   @override
-  void addRSuperellipse(RSuperellipse rse) {
-    assert(_rseIsValid(rse));
-    _addRSuperellipse(rse.computed() as _ComputedRSuperellipse);
+  void addRSuperellipse(RSuperellipse rsuperellipse) {
+    assert(_rsuperellipseIsValid(rsuperellipse));
+    _addRSuperellipse(rsuperellipse._native());
   }
 
   @Native<Void Function(Pointer<Void>, Pointer<Void>)>(symbol: 'Path::addRSuperellipse')
-  external void _addRSuperellipse(_ComputedRSuperellipse rse);
+  external void _addRSuperellipse(_NativeRSuperellipse rsuperellipse);
 
   @override
   void addPath(Path path, Offset offset, {Float64List? matrix4}) {
