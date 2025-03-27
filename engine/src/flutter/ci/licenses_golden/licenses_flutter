@@ -51763,6 +51763,8 @@ ORIGIN: ../../../flutter/impeller/toolkit/interop/example_mtl.m + ../../../flutt
 ORIGIN: ../../../flutter/impeller/toolkit/interop/example_vk.c + ../../../flutter/LICENSE
 ORIGIN: ../../../flutter/impeller/toolkit/interop/formats.cc + ../../../flutter/LICENSE
 ORIGIN: ../../../flutter/impeller/toolkit/interop/formats.h + ../../../flutter/LICENSE
+ORIGIN: ../../../flutter/impeller/toolkit/interop/glyph_info.cc + ../../../flutter/LICENSE
+ORIGIN: ../../../flutter/impeller/toolkit/interop/glyph_info.h + ../../../flutter/LICENSE
 ORIGIN: ../../../flutter/impeller/toolkit/interop/image_filter.cc + ../../../flutter/LICENSE
 ORIGIN: ../../../flutter/impeller/toolkit/interop/image_filter.h + ../../../flutter/LICENSE
 ORIGIN: ../../../flutter/impeller/toolkit/interop/impeller.cc + ../../../flutter/LICENSE
@@ -51770,6 +51772,8 @@ ORIGIN: ../../../flutter/impeller/toolkit/interop/impeller.h + ../../../flutter/
 ORIGIN: ../../../flutter/impeller/toolkit/interop/impeller.hpp + ../../../flutter/LICENSE
 ORIGIN: ../../../flutter/impeller/toolkit/interop/impeller_c.c + ../../../flutter/LICENSE
 ORIGIN: ../../../flutter/impeller/toolkit/interop/impeller_cc.cc + ../../../flutter/LICENSE
+ORIGIN: ../../../flutter/impeller/toolkit/interop/line_metrics.cc + ../../../flutter/LICENSE
+ORIGIN: ../../../flutter/impeller/toolkit/interop/line_metrics.h + ../../../flutter/LICENSE
 ORIGIN: ../../../flutter/impeller/toolkit/interop/mask_filter.cc + ../../../flutter/LICENSE
 ORIGIN: ../../../flutter/impeller/toolkit/interop/mask_filter.h + ../../../flutter/LICENSE
 ORIGIN: ../../../flutter/impeller/toolkit/interop/object.cc + ../../../flutter/LICENSE
@@ -54745,6 +54749,8 @@ FILE: ../../../flutter/impeller/toolkit/interop/example_mtl.m
 FILE: ../../../flutter/impeller/toolkit/interop/example_vk.c
 FILE: ../../../flutter/impeller/toolkit/interop/formats.cc
 FILE: ../../../flutter/impeller/toolkit/interop/formats.h
+FILE: ../../../flutter/impeller/toolkit/interop/glyph_info.cc
+FILE: ../../../flutter/impeller/toolkit/interop/glyph_info.h
 FILE: ../../../flutter/impeller/toolkit/interop/image_filter.cc
 FILE: ../../../flutter/impeller/toolkit/interop/image_filter.h
 FILE: ../../../flutter/impeller/toolkit/interop/impeller.cc
@@ -54752,6 +54758,8 @@ FILE: ../../../flutter/impeller/toolkit/interop/impeller.h
 FILE: ../../../flutter/impeller/toolkit/interop/impeller.hpp
 FILE: ../../../flutter/impeller/toolkit/interop/impeller_c.c
 FILE: ../../../flutter/impeller/toolkit/interop/impeller_cc.cc
+FILE: ../../../flutter/impeller/toolkit/interop/line_metrics.cc
+FILE: ../../../flutter/impeller/toolkit/interop/line_metrics.h
 FILE: ../../../flutter/impeller/toolkit/interop/mask_filter.cc
 FILE: ../../../flutter/impeller/toolkit/interop/mask_filter.h
 FILE: ../../../flutter/impeller/toolkit/interop/object.cc
