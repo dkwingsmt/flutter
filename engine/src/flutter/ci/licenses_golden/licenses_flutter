@@ -51235,6 +51235,7 @@ ORIGIN: ../../../flutter/impeller/entity/contents/line_contents.cc + ../../../fl
 ORIGIN: ../../../flutter/impeller/entity/contents/line_contents.h + ../../../flutter/LICENSE
 ORIGIN: ../../../flutter/impeller/entity/contents/linear_gradient_contents.cc + ../../../flutter/LICENSE
 ORIGIN: ../../../flutter/impeller/entity/contents/linear_gradient_contents.h + ../../../flutter/LICENSE
+ORIGIN: ../../../flutter/impeller/entity/contents/pipelines.h + ../../../flutter/LICENSE
 ORIGIN: ../../../flutter/impeller/entity/contents/radial_gradient_contents.cc + ../../../flutter/LICENSE
 ORIGIN: ../../../flutter/impeller/entity/contents/radial_gradient_contents.h + ../../../flutter/LICENSE
 ORIGIN: ../../../flutter/impeller/entity/contents/runtime_effect_contents.cc + ../../../flutter/LICENSE
@@ -53326,6 +53327,7 @@ ORIGIN: ../../../flutter/shell/platform/linux/fl_view.cc + ../../../flutter/LICE
 ORIGIN: ../../../flutter/shell/platform/linux/fl_view_accessible.cc + ../../../flutter/LICENSE
 ORIGIN: ../../../flutter/shell/platform/linux/fl_view_accessible.h + ../../../flutter/LICENSE
 ORIGIN: ../../../flutter/shell/platform/linux/fl_view_accessible_test.cc + ../../../flutter/LICENSE
+ORIGIN: ../../../flutter/shell/platform/linux/fl_view_private.h + ../../../flutter/LICENSE
 ORIGIN: ../../../flutter/shell/platform/linux/fl_view_test.cc + ../../../flutter/LICENSE
 ORIGIN: ../../../flutter/shell/platform/linux/fl_window_state_monitor.cc + ../../../flutter/LICENSE
 ORIGIN: ../../../flutter/shell/platform/linux/fl_window_state_monitor.h + ../../../flutter/LICENSE
@@ -54212,6 +54214,7 @@ FILE: ../../../flutter/impeller/entity/contents/line_contents.cc
 FILE: ../../../flutter/impeller/entity/contents/line_contents.h
 FILE: ../../../flutter/impeller/entity/contents/linear_gradient_contents.cc
 FILE: ../../../flutter/impeller/entity/contents/linear_gradient_contents.h
+FILE: ../../../flutter/impeller/entity/contents/pipelines.h
 FILE: ../../../flutter/impeller/entity/contents/radial_gradient_contents.cc
 FILE: ../../../flutter/impeller/entity/contents/radial_gradient_contents.h
 FILE: ../../../flutter/impeller/entity/contents/runtime_effect_contents.cc
@@ -56334,6 +56337,7 @@ FILE: ../../../flutter/shell/platform/linux/fl_view.cc
 FILE: ../../../flutter/shell/platform/linux/fl_view_accessible.cc
 FILE: ../../../flutter/shell/platform/linux/fl_view_accessible.h
 FILE: ../../../flutter/shell/platform/linux/fl_view_accessible_test.cc
+FILE: ../../../flutter/shell/platform/linux/fl_view_private.h
 FILE: ../../../flutter/shell/platform/linux/fl_view_test.cc
 FILE: ../../../flutter/shell/platform/linux/fl_window_state_monitor.cc
 FILE: ../../../flutter/shell/platform/linux/fl_window_state_monitor.h
